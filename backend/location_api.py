@@ -321,8 +321,20 @@ def search_locations(query: str, field: str, limit: int = 1000) -> List[Location
         
         actual_field = columns[field_lower]
         
+        # Special handling for postcode search
+        if field_lower == 'postcode':
+            # Remove spaces and convert to uppercase for comparison
+            normalized_query = query.replace(' ', '').upper()
+            search_query = f"""
+            SELECT Postcode, Latitude, Longitude, Town, County, Street1, District1, District2
+            FROM gumtree_data
+            WHERE REPLACE(UPPER({actual_field}), ' ', '') LIKE ?
+            ORDER BY Postcode ASC
+            LIMIT {limit}
+            """
+            cursor.execute(search_query, (f"%{normalized_query}%",))
         # Special handling for town search to include District1 and District2
-        if field_lower == 'town':
+        elif field_lower == 'town':
             search_query = f"""
             SELECT Postcode, Latitude, Longitude, Town, County, Street1, District1, District2
             FROM gumtree_data
@@ -348,8 +360,8 @@ def search_locations(query: str, field: str, limit: int = 1000) -> List[Location
         return [
             LocationResponse(
                 postcode=row['Postcode'],
-                latitude=float(row['Latitude'] if row['Latitude'] is not None else 0.0),
-                longitude=float(row['Longitude'] if row['Longitude'] is not None else 0.0),
+                latitude=row['Latitude'] or 0.0,  # Default to 0.0 if NULL
+                longitude=row['Longitude'] or 0.0,  # Default to 0.0 if NULL
                 town=row['Town'] or "",
                 county=row['County'] or "",
                 street1=row['Street1'] or "",

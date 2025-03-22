@@ -37,12 +37,21 @@ def test_get_location_success(client):
 
 def test_get_location_not_found(client):
     """Test location lookup for non-existent postcode."""
-    response = client.get("/location/INVALID")
+    response = client.get("/location/ZZ99 9ZZ")  # Valid format but guaranteed not to exist
     assert response.status_code == 404
-    assert response.json()["detail"] == "Postcode INVALID not found"
+    assert response.json()["detail"] == "Postcode ZZ99 9ZZ not found"
+
+def test_get_location_invalid_format(client):
+    """Test location lookup with invalid postcode format."""
+    response = client.get("/location/INVALID")  # Invalid format
+    assert response.status_code == 422
+    error_detail = response.json()["detail"][0]  # FastAPI returns a list of errors
+    assert error_detail["msg"] == "String should match pattern '^[A-Z]{1,2}[0-9][A-Z0-9]? ?[0-9][A-Z]{2}$'"
+    assert error_detail["input"] == "INVALID"
+    assert error_detail["loc"] == ["path", "postcode"]
 
 def test_get_location_invalid_postcode(client):
-    """Test location lookup with invalid postcode format."""
+    """Test location lookup with empty postcode."""
     response = client.get("/location/")  # Empty postcode
     assert response.status_code == 404
 
