@@ -4,13 +4,13 @@ import { toast } from "@/components/ui/use-toast";
 
 const API_BASE_URL = "http://localhost:8000";
 
-export async function searchLocations(type: SearchType, value: string): Promise<Location[]> {
+export async function searchLocations(type: SearchType, value: string, limit: number = 1000): Promise<Location[]> {
   if (!value.trim()) {
     return [];
   }
   
   try {
-    const response = await fetch(`${API_BASE_URL}/search/${type}/${encodeURIComponent(value)}`);
+    const response = await fetch(`${API_BASE_URL}/search/${type}/${encodeURIComponent(value)}?limit=${limit}`);
     
     if (!response.ok) {
       const errorData = await response.json();

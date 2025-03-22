@@ -12,14 +12,14 @@ const Index = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const handleSearch = async (type: SearchType, value: string) => {
+  const handleSearch = async (type: SearchType, value: string, limit?: number) => {
     if (!value.trim()) return;
     
     setLoading(true);
     setError('');
     
     try {
-      const results = await searchLocations(type, value);
+      const results = await searchLocations(type, value, limit);
       setLocations(results);
       setSelectedLocation(null);
       
