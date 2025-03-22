@@ -44,7 +44,7 @@ Re-optimizing dependencies because lockfile has changed
 
 Now go to http://localhost:8080/ in the browser:
 
-<img width="1408" alt="image" src="https://github.com/user-attachments/assets/29614ba4-7ee1-4a3c-9a33-11b4b27de4ab" />
+![image](https://github.com/user-attachments/assets/57b52ae7-41c5-412d-a781-0d0788d96c89)
 
 ## How can I edit this code?
 
