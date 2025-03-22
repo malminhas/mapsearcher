@@ -27,9 +27,13 @@ const LocationCard: React.FC<LocationCardProps> = ({ location, isSelected, onCli
             <h3 className="font-medium text-foreground group-hover:text-primary transition-colors">
               {location.postcode}
             </h3>
-            <div className="text-sm text-muted-foreground flex items-center">
+            <div className="text-sm text-muted-foreground flex items-center gap-1 flex-wrap">
+              {location.district1 && <span>{location.district1}</span>}
+              {location.district1 && location.district2 && <span className="mx-0.5">·</span>}
+              {location.district2 && <span>{location.district2}</span>}
+              {(location.district2 || location.district1) && location.town && <span className="mx-0.5">·</span>}
               <span>{location.town || '-'}</span>
-              {location.town && location.county && <span className="mx-1">·</span>}
+              {location.town && location.county && <span className="mx-0.5">·</span>}
               <span>{location.county || '-'}</span>
             </div>
             <div className="text-xs text-muted-foreground/70 ml-auto">
