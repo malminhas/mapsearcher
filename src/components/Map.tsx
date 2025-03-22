@@ -1,9 +1,10 @@
+
 import React, { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { Location } from '@/types';
 
-// Use environment variable for Mapbox token
+// Use environment variable for Mapbox token if available
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN || '';
 
 interface MapProps {
@@ -18,14 +19,16 @@ const Map: React.FC<MapProps> = ({ locations, selectedLocation }) => {
   const [mapLoaded, setMapLoaded] = useState(false);
   const [showError, setShowError] = useState(!mapboxgl.accessToken);
   const [apiKeyInput, setApiKeyInput] = useState('');
-  const [apiKey, setApiKey] = useState('');
+  const [apiKey, setApiKey] = useState(mapboxgl.accessToken);
   const [showModal, setShowModal] = useState(!mapboxgl.accessToken || mapboxgl.accessToken === 'REPLACE_WITH_YOUR_MAPBOX_TOKEN');
 
   // Initialize map
   useEffect(() => {
-    if (!mapContainer.current || !mapboxgl.accessToken) return;
+    if (!mapContainer.current || !apiKey) return;
     
     try {
+      mapboxgl.accessToken = apiKey;
+      
       map.current = new mapboxgl.Map({
         container: mapContainer.current,
         style: 'mapbox://styles/mapbox/light-v10',
@@ -63,7 +66,7 @@ const Map: React.FC<MapProps> = ({ locations, selectedLocation }) => {
         map.current = null;
       }
     };
-  }, []);
+  }, [apiKey]);
 
   // Update markers when locations change
   useEffect(() => {
@@ -77,21 +80,6 @@ const Map: React.FC<MapProps> = ({ locations, selectedLocation }) => {
     const bounds = new mapboxgl.LngLatBounds();
     
     locations.forEach(location => {
-      const popupContent = `
-        <div class="p-2">
-          <h3 class="text-sm font-medium">${location.postcode}</h3>
-          <p class="text-xs text-gray-500">
-            ${location.district1 ? `${location.district1}` : ''}
-            ${location.district1 && location.district2 ? ' · ' : ''}
-            ${location.district2 ? `${location.district2}` : ''}
-            ${(location.district1 || location.district2) && location.town ? ' · ' : ''}
-            ${location.town}
-            ${location.town && location.county ? ' · ' : ''}
-            ${location.county}
-          </p>
-        </div>
-      `;
-      
       const marker = new mapboxgl.Marker({
         color: selectedLocation?.postcode === location.postcode ? '#3b82f6' : '#6b7280',
         scale: selectedLocation?.postcode === location.postcode ? 1 : 0.8,
@@ -102,15 +90,13 @@ const Map: React.FC<MapProps> = ({ locations, selectedLocation }) => {
             <div class="p-2">
               <h3 class="text-sm font-medium">${location.postcode}</h3>
               <p class="text-xs text-gray-500">
-                ${[
-                  location.street1,
-                  location.district1,
-                  location.district2,
-                  location.town,
-                  location.county
-                ]
-                  .filter(Boolean)
-                  .join(", ")}
+                ${location.district1 ? `${location.district1}` : ''}
+                ${location.district1 && location.district2 ? ' · ' : ''}
+                ${location.district2 ? `${location.district2}` : ''}
+                ${(location.district1 || location.district2) && location.town ? ' · ' : ''}
+                ${location.town}
+                ${location.town && location.county ? ' · ' : ''}
+                ${location.county}
               </p>
             </div>
           `)
@@ -151,36 +137,18 @@ const Map: React.FC<MapProps> = ({ locations, selectedLocation }) => {
       const lngLat = marker.getLngLat();
       
       if (lngLat.lng === selectedLocation.longitude && lngLat.lat === selectedLocation.latitude) {
-        // Highlight selected marker
-        const popupContent = `
-          <div class="p-2">
-            <h3 class="text-sm font-medium">${selectedLocation.postcode}</h3>
-            <p class="text-xs text-gray-500">
-              ${selectedLocation.district1 ? `${selectedLocation.district1}` : ''}
-              ${selectedLocation.district1 && selectedLocation.district2 ? ' · ' : ''}
-              ${selectedLocation.district2 ? `${selectedLocation.district2}` : ''}
-              ${(selectedLocation.district1 || selectedLocation.district2) && selectedLocation.town ? ' · ' : ''}
-              ${selectedLocation.town}
-              ${selectedLocation.town && selectedLocation.county ? ' · ' : ''}
-              ${selectedLocation.county}
-            </p>
-          </div>
-        `;
-        
         marker.setPopup(
           new mapboxgl.Popup({ offset: 25, closeButton: false, maxWidth: '300px' }).setHTML(`
             <div class="p-2">
               <h3 class="text-sm font-medium">${selectedLocation.postcode}</h3>
               <p class="text-xs text-gray-500">
-                ${[
-                  selectedLocation.street1,
-                  selectedLocation.district1,
-                  selectedLocation.district2,
-                  selectedLocation.town,
-                  selectedLocation.county
-                ]
-                  .filter(Boolean)
-                  .join(", ")}
+                ${selectedLocation.district1 ? `${selectedLocation.district1}` : ''}
+                ${selectedLocation.district1 && selectedLocation.district2 ? ' · ' : ''}
+                ${selectedLocation.district2 ? `${selectedLocation.district2}` : ''}
+                ${(selectedLocation.district1 || selectedLocation.district2) && selectedLocation.town ? ' · ' : ''}
+                ${selectedLocation.town}
+                ${selectedLocation.town && selectedLocation.county ? ' · ' : ''}
+                ${selectedLocation.county}
               </p>
             </div>
           `)
@@ -203,6 +171,7 @@ const Map: React.FC<MapProps> = ({ locations, selectedLocation }) => {
     const savedToken = localStorage.getItem('mapbox_token');
     if (savedToken) {
       setApiKey(savedToken);
+      mapboxgl.accessToken = savedToken;
       setShowModal(false);
     }
   }, []);

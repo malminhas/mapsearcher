@@ -1,14 +1,16 @@
+
+export type SearchType = 'postcode' | 'town' | 'county';
+
 export interface Location {
+  id: number;
   postcode: string;
   latitude: number;
   longitude: number;
-  district1?: string;
-  district2?: string;
-  town: string;
-  county: string;
   street1: string;
-  district1: string;
-  district2: string;
+  street2: string;
+  district1: string; // E.g. Clarendon Park
+  district2: string; // E.g. Knighton
+  town: string;      // E.g. Leicester
+  county: string;    // E.g. Leicestershire
+  country: string;   // E.g. England
 }
-
-export type SearchType = 'postcode' | 'town' | 'county';
