@@ -1,12 +1,10 @@
-
 import React, { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { Location } from '@/types';
 
-// Temporary placeholder for Mapbox token
-// In production, this should come from environment variables
-mapboxgl.accessToken = 'REPLACE_WITH_YOUR_MAPBOX_TOKEN';
+// Use environment variable for Mapbox token
+mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN || '';
 
 interface MapProps {
   locations: Location[];
@@ -18,42 +16,46 @@ const Map: React.FC<MapProps> = ({ locations, selectedLocation }) => {
   const map = useRef<mapboxgl.Map | null>(null);
   const markersRef = useRef<mapboxgl.Marker[]>([]);
   const [mapLoaded, setMapLoaded] = useState(false);
+  const [showError, setShowError] = useState(!mapboxgl.accessToken);
   const [apiKeyInput, setApiKeyInput] = useState('');
   const [apiKey, setApiKey] = useState('');
   const [showModal, setShowModal] = useState(!mapboxgl.accessToken || mapboxgl.accessToken === 'REPLACE_WITH_YOUR_MAPBOX_TOKEN');
 
   // Initialize map
   useEffect(() => {
-    if (!mapContainer.current || !apiKey) return;
+    if (!mapContainer.current || !mapboxgl.accessToken) return;
     
-    mapboxgl.accessToken = apiKey;
-    
-    map.current = new mapboxgl.Map({
-      container: mapContainer.current,
-      style: 'mapbox://styles/mapbox/light-v10',
-      center: [-1.1437, 52.6376], // Center of UK
-      zoom: 5,
-      pitch: 0,
-      attributionControl: false
-    });
+    try {
+      map.current = new mapboxgl.Map({
+        container: mapContainer.current,
+        style: 'mapbox://styles/mapbox/light-v10',
+        center: [-1.1437, 52.6376], // Center of UK
+        zoom: 5,
+        pitch: 0,
+        attributionControl: false
+      });
 
-    map.current.addControl(
-      new mapboxgl.NavigationControl({
-        visualizePitch: true,
-        showCompass: true
-      }),
-      'bottom-right'
-    );
+      map.current.addControl(
+        new mapboxgl.NavigationControl({
+          visualizePitch: true,
+          showCompass: true
+        }),
+        'bottom-right'
+      );
 
-    map.current.addControl(
-      new mapboxgl.AttributionControl({
-        compact: true
-      })
-    );
+      map.current.addControl(
+        new mapboxgl.AttributionControl({
+          compact: true
+        })
+      );
 
-    map.current.on('load', () => {
-      setMapLoaded(true);
-    });
+      map.current.on('load', () => {
+        setMapLoaded(true);
+      });
+    } catch (error) {
+      console.error('Error initializing map:', error);
+      setShowError(true);
+    }
 
     return () => {
       if (map.current) {
@@ -61,7 +63,7 @@ const Map: React.FC<MapProps> = ({ locations, selectedLocation }) => {
         map.current = null;
       }
     };
-  }, [apiKey]);
+  }, []);
 
   // Update markers when locations change
   useEffect(() => {
@@ -84,7 +86,17 @@ const Map: React.FC<MapProps> = ({ locations, selectedLocation }) => {
           new mapboxgl.Popup({ offset: 25, closeButton: false, maxWidth: '300px' }).setHTML(`
             <div class="p-2">
               <h3 class="text-sm font-medium">${location.postcode}</h3>
-              <p class="text-xs text-gray-500">${location.town}, ${location.county}</p>
+              <p class="text-xs text-gray-500">
+                ${[
+                  location.street1,
+                  location.district1,
+                  location.district2,
+                  location.town,
+                  location.county
+                ]
+                  .filter(Boolean)
+                  .join(", ")}
+              </p>
             </div>
           `)
         );
@@ -130,7 +142,17 @@ const Map: React.FC<MapProps> = ({ locations, selectedLocation }) => {
           new mapboxgl.Popup({ offset: 25, closeButton: false, maxWidth: '300px' }).setHTML(`
             <div class="p-2">
               <h3 class="text-sm font-medium">${selectedLocation.postcode}</h3>
-              <p class="text-xs text-gray-500">${selectedLocation.town}, ${selectedLocation.county}</p>
+              <p class="text-xs text-gray-500">
+                ${[
+                  selectedLocation.street1,
+                  selectedLocation.district1,
+                  selectedLocation.district2,
+                  selectedLocation.town,
+                  selectedLocation.county
+                ]
+                  .filter(Boolean)
+                  .join(", ")}
+              </p>
             </div>
           `)
         ).togglePopup();
@@ -159,6 +181,17 @@ const Map: React.FC<MapProps> = ({ locations, selectedLocation }) => {
   return (
     <>
       <div ref={mapContainer} className="w-full h-full rounded-xl overflow-hidden shadow-elevated relative">
+        {showError && (
+          <div className="absolute inset-0 flex items-center justify-center bg-secondary/50">
+            <div className="bg-background p-6 rounded-lg shadow-lg max-w-md">
+              <h3 className="text-lg font-medium mb-2">Map Configuration Error</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                Unable to load the map. Please make sure the Mapbox API key is properly configured in your environment variables.
+                Contact your administrator for assistance.
+              </p>
+            </div>
+          </div>
+        )}
         {!apiKey && (
           <div className="absolute inset-0 flex items-center justify-center bg-secondary/50">
             <div className="bg-background p-6 rounded-lg shadow-lg max-w-md">

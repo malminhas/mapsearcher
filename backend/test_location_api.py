@@ -121,15 +121,27 @@ def test_search_by_town(client):
     assert response.status_code == 200
     data = response.json()
     assert len(data["locations"]) > 0
-    assert any(loc["town"] == TEST_TOWN for loc in data["locations"])
+    
+    # Check that at least one result has TEST_TOWN in either town, district1, or district2 (case insensitive)
+    assert any(
+        TEST_TOWN.upper() in loc["town"].upper() or
+        (loc["district1"] and TEST_TOWN.upper() in loc["district1"].upper()) or
+        (loc["district2"] and TEST_TOWN.upper() in loc["district2"].upper())
+        for loc in data["locations"]
+    )
     
     # Test partial match
     response = client.get("/search/town/LON")
     assert response.status_code == 200
     data = response.json()
     assert len(data["locations"]) > 0
-    # Check that results contain LON in either town or district1
-    assert all("LON" in loc["town"].upper() or "LON" in loc["district1"].upper() for loc in data["locations"])
+    # Check that results contain LON in either town, district1, or district2 (case insensitive)
+    assert all(
+        "LON" in loc["town"].upper() or 
+        (loc["district1"] and "LON" in loc["district1"].upper()) or 
+        (loc["district2"] and "LON" in loc["district2"].upper())
+        for loc in data["locations"]
+    )
     
     # Test no matches
     response = client.get("/search/town/INVALID")

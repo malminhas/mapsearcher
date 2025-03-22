@@ -70,6 +70,17 @@ from contextlib import asynccontextmanager
 import logging
 from datetime import datetime
 import sys
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+
+# Initialize configuration from environment variables
+DB_NAME = os.getenv('DATABASE_PATH', 'gumtree.db')
+CACHE_SIZE = int(os.getenv('CACHE_SIZE', '1000'))
+CACHE_TTL = int(os.getenv('CACHE_TTL', '3600'))
+LOG_LEVEL = os.getenv('LOG_LEVEL', 'DEBUG')
+ALLOWED_ORIGINS = os.getenv('ALLOWED_ORIGINS', '*').split(',')
 
 # Configure logging before creating the FastAPI app
 def setup_logging():
@@ -83,7 +94,7 @@ def setup_logging():
     
     # Configure logging
     logging.basicConfig(
-        level=logging.DEBUG,  # Set to DEBUG for more verbose output
+        level=getattr(logging, LOG_LEVEL),
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
         handlers=[
             logging.FileHandler(log_file),
@@ -100,13 +111,6 @@ def setup_logging():
 # Initialize logging
 logger = setup_logging()
 
-# Initialize database name
-DB_NAME = 'gumtree.db'
-
-# Cache settings
-CACHE_SIZE = 1000  # Number of postcodes to cache
-CACHE_TTL = 3600  # Cache TTL in seconds (1 hour)
-
 class LocationResponse(BaseModel):
     postcode: str
     latitude: float
@@ -115,6 +119,7 @@ class LocationResponse(BaseModel):
     county: str = ""  # Default to empty string instead of None
     street1: str = ""  # Default to empty string instead of None
     district1: str = ""  # Default to empty string instead of None
+    district2: str = ""  # Default to empty string instead of None
 
 class LocationListResponse(BaseModel):
     locations: List[LocationResponse]
@@ -182,7 +187,7 @@ def get_location_from_cache(postcode: str) -> Optional[LocationResponse]:
         
         # Optimized query with index usage
         query = """
-        SELECT Postcode, Latitude, Longitude, Town, County, Street1, District1
+        SELECT Postcode, Latitude, Longitude, Town, County, Street1, District1, District2
         FROM gumtree_data
         WHERE Postcode = ?
         LIMIT 1
@@ -203,7 +208,8 @@ def get_location_from_cache(postcode: str) -> Optional[LocationResponse]:
             town=result['Town'] or "",
             county=result['County'] or "",
             street1=result['Street1'] or "",
-            district1=result['District1'] or ""
+            district1=result['District1'] or "",
+            district2=result['District2'] or ""
         )
 
 def search_locations(query: str, field: str, limit: int = 1000) -> List[LocationResponse]:
@@ -239,7 +245,8 @@ def search_locations(query: str, field: str, limit: int = 1000) -> List[Location
             search_query = f"""
             SELECT Postcode, Latitude, Longitude, Town, County, Street1, District1, District2
             FROM gumtree_data
-            WHERE {actual_field} LIKE ? OR District1 LIKE ? OR District2 LIKE ?
+            WHERE UPPER({actual_field}) LIKE UPPER(?) OR UPPER(District1) LIKE UPPER(?) OR UPPER(District2) LIKE UPPER(?)
+            ORDER BY Postcode ASC
             LIMIT {limit}
             """
             cursor.execute(search_query, (f"%{query}%", f"%{query}%", f"%{query}%"))
@@ -248,7 +255,8 @@ def search_locations(query: str, field: str, limit: int = 1000) -> List[Location
             search_query = f"""
             SELECT Postcode, Latitude, Longitude, Town, County, Street1, District1, District2
             FROM gumtree_data
-            WHERE {actual_field} LIKE ?
+            WHERE UPPER({actual_field}) LIKE UPPER(?)
+            ORDER BY Postcode ASC
             LIMIT {limit}
             """
             cursor.execute(search_query, (f"%{query}%",))
@@ -264,7 +272,8 @@ def search_locations(query: str, field: str, limit: int = 1000) -> List[Location
                 town=row['Town'] or "",
                 county=row['County'] or "",
                 street1=row['Street1'] or "",
-                district1=row['District1'] or ""
+                district1=row['District1'] or "",
+                district2=row['District2'] or ""
             )
             for row in results
         ]
@@ -301,7 +310,7 @@ app = FastAPI(
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allows all origins
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],  # Allows all methods
     allow_headers=["*"],  # Allows all headers

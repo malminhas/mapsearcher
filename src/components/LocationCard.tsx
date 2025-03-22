@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Location } from '@/types';
 import { cn } from '@/lib/utils';
@@ -28,9 +27,15 @@ const LocationCard: React.FC<LocationCardProps> = ({ location, isSelected, onCli
               {location.postcode}
             </h3>
             <div className="text-sm text-muted-foreground flex items-center">
-              <span>{location.town || '-'}</span>
-              {location.town && location.county && <span className="mx-1">·</span>}
-              <span>{location.county || '-'}</span>
+              {[
+                location.street1,
+                location.district1,
+                location.district2,
+                location.town,
+                location.county
+              ]
+                .filter(Boolean)  // Remove empty/null values
+                .join(", ")}
             </div>
             <div className="text-xs text-muted-foreground/70 ml-auto">
               {location.latitude.toFixed(4)}, {location.longitude.toFixed(4)}
