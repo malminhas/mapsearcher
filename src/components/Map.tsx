@@ -77,6 +77,21 @@ const Map: React.FC<MapProps> = ({ locations, selectedLocation }) => {
     const bounds = new mapboxgl.LngLatBounds();
     
     locations.forEach(location => {
+      const popupContent = `
+        <div class="p-2">
+          <h3 class="text-sm font-medium">${location.postcode}</h3>
+          <p class="text-xs text-gray-500">
+            ${location.district1 ? `${location.district1}` : ''}
+            ${location.district1 && location.district2 ? ' · ' : ''}
+            ${location.district2 ? `${location.district2}` : ''}
+            ${(location.district1 || location.district2) && location.town ? ' · ' : ''}
+            ${location.town}
+            ${location.town && location.county ? ' · ' : ''}
+            ${location.county}
+          </p>
+        </div>
+      `;
+      
       const marker = new mapboxgl.Marker({
         color: selectedLocation?.postcode === location.postcode ? '#3b82f6' : '#6b7280',
         scale: selectedLocation?.postcode === location.postcode ? 1 : 0.8,
@@ -133,11 +148,25 @@ const Map: React.FC<MapProps> = ({ locations, selectedLocation }) => {
     
     // Update marker colors
     markersRef.current.forEach(marker => {
-      const markerElement = marker.getElement();
       const lngLat = marker.getLngLat();
       
       if (lngLat.lng === selectedLocation.longitude && lngLat.lat === selectedLocation.latitude) {
         // Highlight selected marker
+        const popupContent = `
+          <div class="p-2">
+            <h3 class="text-sm font-medium">${selectedLocation.postcode}</h3>
+            <p class="text-xs text-gray-500">
+              ${selectedLocation.district1 ? `${selectedLocation.district1}` : ''}
+              ${selectedLocation.district1 && selectedLocation.district2 ? ' · ' : ''}
+              ${selectedLocation.district2 ? `${selectedLocation.district2}` : ''}
+              ${(selectedLocation.district1 || selectedLocation.district2) && selectedLocation.town ? ' · ' : ''}
+              ${selectedLocation.town}
+              ${selectedLocation.town && selectedLocation.county ? ' · ' : ''}
+              ${selectedLocation.county}
+            </p>
+          </div>
+        `;
+        
         marker.setPopup(
           new mapboxgl.Popup({ offset: 25, closeButton: false, maxWidth: '300px' }).setHTML(`
             <div class="p-2">
