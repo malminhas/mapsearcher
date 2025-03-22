@@ -1,4 +1,6 @@
-# Welcome to mapsearcher-geo-browser
+# Welcome to mapsearcher
+
+A web application for exploring UK postcodes, districts and towns.
 
 ## Project info
 
@@ -66,10 +68,10 @@ Follow these steps:
 
 ```sh
 # Step 1: Clone the repository using the project's Git URL.
-git clone git@github.com:malminhas/mapsearcher-geo-browser.git
+git clone git@github.com:malminhas/mapsearcher.git
 
 # Step 2: Navigate to the project directory.
-cd mapsearcher-geo-browswer
+cd mapsearcher
 
 # Step 3: Install the necessary dependencies.
 npm i
