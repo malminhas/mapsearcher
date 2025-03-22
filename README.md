@@ -1,8 +1,50 @@
-# Welcome to your Lovable project
+# Welcome to mapsearcher-geo-browser
 
 ## Project info
 
 **URL**: https://lovable.dev/projects/4cbbd2cc-b23c-4abd-8ff8-3527df150ad4
+
+## Running this project
+
+**Backend**
+
+You will first need to build your `sqlite3` locations db from a file which you need locally.  You build the database as follows:
+```
+$ cd backend
+$ cd python csv_to_sqlite.py -c locations.csv
+...
+Conversion complete! Database saved as: locations.db
+Final row count in database: 1,999,624
+```
+
+Now fire up the backend:
+```
+$ python location_api.py
+```
+
+**Frontend**
+
+To run the frontend which was entirely built with lovable.dev, make sure you have everything you need to run Vite, TypeScript, React, shadcn-ui and Tailwind locally:
+```
+$ cd ..
+$ npm i
+$ npm run dev
+
+> vite_react_shadcn_ts@0.0.0 dev
+> vite
+
+Re-optimizing dependencies because lockfile has changed
+
+  VITE v5.4.10  ready in 594 ms
+
+  ➜  Local:   http://localhost:8080/
+  ➜  Network: http://192.168.0.190:8080/
+  ➜  press h + enter to show help
+```
+
+Now go to http://localhost:8080/ in the browser:
+
+<img width="1408" alt="image" src="https://github.com/user-attachments/assets/29614ba4-7ee1-4a3c-9a33-11b4b27de4ab" />
 
 ## How can I edit this code?
 
@@ -24,10 +66,10 @@ Follow these steps:
 
 ```sh
 # Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+git clone git@github.com:malminhas/mapsearcher-geo-browser.git
 
 # Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+cd mapsearcher-geo-browswer
 
 # Step 3: Install the necessary dependencies.
 npm i
@@ -59,6 +101,13 @@ This project is built with .
 - React
 - shadcn-ui
 - Tailwind CSS
+
+The backend is built with .
+
+- FastAPI
+- uvicorn
+- sqlite3
+
 
 ## How can I deploy this project?
 
