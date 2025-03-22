@@ -18,7 +18,14 @@ export async function searchLocations(type: SearchType, value: string): Promise<
     }
     
     const data = await response.json();
-    return data.locations || [];
+    let locations = data.locations || [];
+    
+    // Filter out locations with longitude 0 and latitude 0 when searching by town or county
+    if (type === 'town' || type === 'county') {
+      locations = locations.filter(location => !(location.longitude === 0 && location.latitude === 0));
+    }
+    
+    return locations;
   } catch (error) {
     const message = error instanceof Error ? error.message : 'An unexpected error occurred';
     toast({
