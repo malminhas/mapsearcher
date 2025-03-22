@@ -21,16 +21,16 @@ const ResultList: React.FC<ResultListProps> = ({
 }) => {
   return (
     <div className="flex-1 h-full overflow-hidden flex flex-col bg-card rounded-xl border border-border/50 shadow-elevated">
-      <div className="p-4 border-b border-border/50 flex items-center justify-between">
+      <div className="p-3 border-b border-border/50 flex items-center justify-between">
         <h2 className="text-lg font-medium text-foreground">Search Results</h2>
         <div className="text-sm text-muted-foreground">
           {locations.length > 0 && `${locations.length} location${locations.length === 1 ? '' : 's'} found`}
         </div>
       </div>
       
-      <div className="flex-1 overflow-y-auto p-4 space-y-3">
+      <div className="flex-1 overflow-y-auto p-2 space-y-1.5">
         {error && (
-          <div className="rounded-xl bg-destructive/10 p-4 text-sm text-destructive animate-fade-in">
+          <div className="rounded-xl bg-destructive/10 p-3 text-sm text-destructive animate-fade-in">
             {error}
           </div>
         )}
@@ -46,7 +46,7 @@ const ResultList: React.FC<ResultListProps> = ({
         ) : (
           <>
             {locations.length > 0 ? (
-              <div className={cn("space-y-3", loading ? "opacity-50" : "animate-fade-in")}>
+              <div className={cn("space-y-1.5", loading ? "opacity-50" : "animate-fade-in")}>
                 {locations.map((location) => (
                   <LocationCard
                     key={location.postcode}
