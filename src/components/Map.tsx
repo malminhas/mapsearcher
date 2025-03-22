@@ -80,6 +80,9 @@ const Map: React.FC<MapProps> = ({ locations, selectedLocation }) => {
     const bounds = new mapboxgl.LngLatBounds();
     
     locations.forEach(location => {
+      // Format street address (combining street1 and street2 if both exist)
+      const streetAddress = location.street1 + (location.street2 ? `, ${location.street2}` : '');
+      
       const marker = new mapboxgl.Marker({
         color: selectedLocation?.postcode === location.postcode ? '#3b82f6' : '#6b7280',
         scale: selectedLocation?.postcode === location.postcode ? 1 : 0.8,
@@ -89,6 +92,7 @@ const Map: React.FC<MapProps> = ({ locations, selectedLocation }) => {
           new mapboxgl.Popup({ offset: 25, closeButton: false, maxWidth: '300px' }).setHTML(`
             <div class="p-2">
               <h3 class="text-sm font-medium">${location.postcode}</h3>
+              <p class="text-xs text-gray-500 mb-1">${streetAddress}</p>
               <p class="text-xs text-gray-500">
                 ${location.district1 ? `${location.district1}` : ''}
                 ${location.district1 && location.district2 ? ' · ' : ''}
@@ -137,10 +141,14 @@ const Map: React.FC<MapProps> = ({ locations, selectedLocation }) => {
       const lngLat = marker.getLngLat();
       
       if (lngLat.lng === selectedLocation.longitude && lngLat.lat === selectedLocation.latitude) {
+        // Format street address (combining street1 and street2 if both exist)
+        const streetAddress = selectedLocation.street1 + (selectedLocation.street2 ? `, ${selectedLocation.street2}` : '');
+        
         marker.setPopup(
           new mapboxgl.Popup({ offset: 25, closeButton: false, maxWidth: '300px' }).setHTML(`
             <div class="p-2">
               <h3 class="text-sm font-medium">${selectedLocation.postcode}</h3>
+              <p class="text-xs text-gray-500 mb-1">${streetAddress}</p>
               <p class="text-xs text-gray-500">
                 ${selectedLocation.district1 ? `${selectedLocation.district1}` : ''}
                 ${selectedLocation.district1 && selectedLocation.district2 ? ' · ' : ''}
