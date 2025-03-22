@@ -113,6 +113,8 @@ class LocationResponse(BaseModel):
     longitude: float
     town: str = ""  # Default to empty string instead of None
     county: str = ""  # Default to empty string instead of None
+    street1: str = ""  # Default to empty string instead of None
+    district1: str = ""  # Default to empty string instead of None
 
 class LocationListResponse(BaseModel):
     locations: List[LocationResponse]
@@ -180,7 +182,7 @@ def get_location_from_cache(postcode: str) -> Optional[LocationResponse]:
         
         # Optimized query with index usage
         query = """
-        SELECT Postcode, Latitude, Longitude, Town, County
+        SELECT Postcode, Latitude, Longitude, Town, County, Street1, District1
         FROM gumtree_data
         WHERE Postcode = ?
         LIMIT 1
@@ -199,7 +201,9 @@ def get_location_from_cache(postcode: str) -> Optional[LocationResponse]:
             latitude=float(result['Latitude']),
             longitude=float(result['Longitude']),
             town=result['Town'] or "",
-            county=result['County'] or ""
+            county=result['County'] or "",
+            street1=result['Street1'] or "",
+            district1=result['District1'] or ""
         )
 
 def search_locations(query: str, field: str, limit: int = 1000) -> List[LocationResponse]:
@@ -230,15 +234,25 @@ def search_locations(query: str, field: str, limit: int = 1000) -> List[Location
         
         actual_field = columns[field_lower]
         
-        # Use LIKE for partial matches
-        search_query = f"""
-        SELECT Postcode, Latitude, Longitude, Town, County
-        FROM gumtree_data
-        WHERE {actual_field} LIKE ?
-        LIMIT {limit}
-        """
+        # Special handling for town search to include District1 and District2
+        if field_lower == 'town':
+            search_query = f"""
+            SELECT Postcode, Latitude, Longitude, Town, County, Street1, District1, District2
+            FROM gumtree_data
+            WHERE {actual_field} LIKE ? OR District1 LIKE ? OR District2 LIKE ?
+            LIMIT {limit}
+            """
+            cursor.execute(search_query, (f"%{query}%", f"%{query}%", f"%{query}%"))
+        else:
+            # Use LIKE for partial matches
+            search_query = f"""
+            SELECT Postcode, Latitude, Longitude, Town, County, Street1, District1, District2
+            FROM gumtree_data
+            WHERE {actual_field} LIKE ?
+            LIMIT {limit}
+            """
+            cursor.execute(search_query, (f"%{query}%",))
         
-        cursor.execute(search_query, (f"%{query}%",))
         results = cursor.fetchall()
         
         logger.info(f"Found {len(results)} results for {field} search: {query}")
@@ -248,7 +262,9 @@ def search_locations(query: str, field: str, limit: int = 1000) -> List[Location
                 latitude=float(row['Latitude'] if row['Latitude'] is not None else 0.0),
                 longitude=float(row['Longitude'] if row['Longitude'] is not None else 0.0),
                 town=row['Town'] or "",
-                county=row['County'] or ""
+                county=row['County'] or "",
+                street1=row['Street1'] or "",
+                district1=row['District1'] or ""
             )
             for row in results
         ]
