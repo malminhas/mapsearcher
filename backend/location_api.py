@@ -202,18 +202,19 @@ def get_location_from_cache(postcode: str) -> Optional[LocationResponse]:
             county=result['County'] or ""
         )
 
-def search_locations(query: str, field: str) -> List[LocationResponse]:
+def search_locations(query: str, field: str, limit: int = 1000) -> List[LocationResponse]:
     """
     Search locations by a given field and query.
     
     Args:
         query (str): The search query
         field (str): The field to search in ('Postcode', 'Town', or 'County')
+        limit (int, optional): Maximum number of results to return. Defaults to 1000.
         
     Returns:
         List[LocationResponse]: List of matching locations
     """
-    logger.info(f"Searching locations by {field} with query: {query}")
+    logger.info(f"Searching locations by {field} with query: {query} (limit: {limit})")
     with get_db_connection() as conn:
         cursor = conn.cursor()
         
@@ -234,7 +235,7 @@ def search_locations(query: str, field: str) -> List[LocationResponse]:
         SELECT Postcode, Latitude, Longitude, Town, County
         FROM gumtree_data
         WHERE {actual_field} LIKE ?
-        LIMIT 100
+        LIMIT {limit}
         """
         
         cursor.execute(search_query, (f"%{query}%",))
@@ -244,8 +245,8 @@ def search_locations(query: str, field: str) -> List[LocationResponse]:
         return [
             LocationResponse(
                 postcode=row['Postcode'],
-                latitude=float(row['Latitude']),
-                longitude=float(row['Longitude']),
+                latitude=float(row['Latitude'] if row['Latitude'] is not None else 0.0),
+                longitude=float(row['Longitude'] if row['Longitude'] is not None else 0.0),
                 town=row['Town'] or "",
                 county=row['County'] or ""
             )
@@ -326,19 +327,20 @@ async def get_location(postcode: str):
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 @app.get("/search/postcode/{query}", response_model=LocationListResponse, summary="Search locations by postcode")
-async def search_by_postcode(query: str):
+async def search_by_postcode(query: str, limit: int = 1000):
     """
     Search locations by postcode.
     
     Args:
         query (str): The postcode to search for
+        limit (int, optional): Maximum number of results to return. Defaults to 1000.
         
     Returns:
         LocationListResponse: List of matching locations
     """
     logger.info(f"Received postcode search request for query: {query}")
     try:
-        locations = search_locations(query, 'Postcode')
+        locations = search_locations(query, 'Postcode', limit)
         logger.info(f"Found {len(locations)} locations matching postcode query: {query}")
         return LocationListResponse(locations=locations)
     except ValueError as e:
@@ -349,19 +351,20 @@ async def search_by_postcode(query: str):
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 @app.get("/search/town/{query}", response_model=LocationListResponse, summary="Search locations by town")
-async def search_by_town(query: str):
+async def search_by_town(query: str, limit: int = 1000):
     """
     Search locations by town.
     
     Args:
         query (str): The town to search for
+        limit (int, optional): Maximum number of results to return. Defaults to 1000.
         
     Returns:
         LocationListResponse: List of matching locations
     """
     logger.info(f"Received town search request for query: {query}")
     try:
-        locations = search_locations(query, 'Town')
+        locations = search_locations(query, 'Town', limit)
         logger.info(f"Found {len(locations)} locations matching town query: {query}")
         return LocationListResponse(locations=locations)
     except ValueError as e:
@@ -372,19 +375,20 @@ async def search_by_town(query: str):
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 @app.get("/search/county/{query}", response_model=LocationListResponse, summary="Search locations by county")
-async def search_by_county(query: str):
+async def search_by_county(query: str, limit: int = 1000):
     """
     Search locations by county.
     
     Args:
         query (str): The county to search for
+        limit (int, optional): Maximum number of results to return. Defaults to 1000.
         
     Returns:
         LocationListResponse: List of matching locations
     """
     logger.info(f"Received county search request for query: {query}")
     try:
-        locations = search_locations(query, 'County')
+        locations = search_locations(query, 'County', limit)
         logger.info(f"Found {len(locations)} locations matching county query: {query}")
         return LocationListResponse(locations=locations)
     except ValueError as e:
