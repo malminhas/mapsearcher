@@ -111,8 +111,8 @@ class SearchQuery(BaseModel):
     @field_validator('limit')
     @classmethod
     def validate_limit(cls, v):
-        if v < 1 or v > 1000:
-            raise ValueError('Limit must be between 1 and 1000')
+        if v < 1 or v > 5000:  # Increased maximum limit to 5000
+            raise ValueError('Limit must be between 1 and 5000')
         return v
 
 class PostcodeQuery(SearchQuery):
@@ -596,7 +596,7 @@ async def search_by_postcode(
     limit: int = Query(
         1000, 
         ge=1, 
-        le=5000,
+        le=5000,  # Updated to match model
         description="Maximum number of results to return"
     )
 ):
@@ -677,7 +677,7 @@ async def search_by_town(
     limit: int = Query(
         1000, 
         ge=1, 
-        le=1000,
+        le=5000,  # Updated to match model
         description="Maximum number of results to return"
     )
 ):
@@ -696,7 +696,7 @@ async def search_by_town(
     **Args:**
     
     * **query** (str): Town name (1-100 characters)
-    * **limit** (int, optional): Maximum number of results (1-1000, default: 1000)
+    * **limit** (int, optional): Maximum number of results (1-5000, default: 1000)
         
     **Returns:**
     
@@ -764,7 +764,7 @@ async def search_by_county(
     limit: int = Query(
         1000, 
         ge=1, 
-        le=1000,
+        le=5000,  # Updated to match model
         description="Maximum number of results to return"
     )
 ):
@@ -777,7 +777,7 @@ async def search_by_county(
     **Args:**
     
     * **query** (str): County name (1-100 characters)
-    * **limit** (int, optional): Maximum number of results (1-1000, default: 1000)
+    * **limit** (int, optional): Maximum number of results (1-5000, default: 1000)
         
     **Returns:**
     
