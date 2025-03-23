@@ -51,14 +51,37 @@ Re-optimizing dependencies because lockfile has changed
 
   VITE v5.4.10  ready in 594 ms
 
-  ➜  Local:   http://localhost:8080/
-  ➜  Network: http://192.168.0.190:8080/
+  ➜  Local:   http://localhost:8010/
+  ➜  Network: http://192.168.0.190:8010/
   ➜  press h + enter to show help
 ```
 
-Now go to http://localhost:8080/ in the browser:
+Now go to http://localhost:8010/ in the browser:
 
 ![image](https://github.com/user-attachments/assets/57b52ae7-41c5-412d-a781-0d0788d96c89)
+
+**Security**
+
+Security checks conducted using Cursor code agent:
+
+<img width="358" alt="image" src="https://github.com/user-attachments/assets/686e7b16-540e-4dc6-a3f1-ab90f24ff87c" />
+
+**Deployment**
+
+Docker support is provided through Dockerfiles marshalled through terraform as follows.  Before you do this, make sure you are not running either the frontend or backend locally:
+
+```
+$ cd terraform
+$ terraform init
+$ terraform apply
+```
+
+Once built, you should see the containers running locally in Docker Desktop: 
+
+<img width="1096" alt="image" src="https://github.com/user-attachments/assets/344dfd8b-0fee-4830-8edd-e61ebec02b4d" />
+
+And you should be able to access the service at [http://localhost:8010/](http://localhost:8010/).
+
 
 ## How can I edit this code?
 
@@ -108,7 +131,7 @@ $ npm run dev
 
 ## What technologies are used for this project?
 
-This project is built with .
+This project is built with:
 
 - Vite
 - TypeScript
@@ -116,7 +139,7 @@ This project is built with .
 - shadcn-ui
 - Tailwind CSS
 
-The backend is built with .
+The backend is built with:
 
 - FastAPI
 - uvicorn
