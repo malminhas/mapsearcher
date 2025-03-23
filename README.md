@@ -8,7 +8,8 @@ A web application for exploring UK postcodes, districts and towns.
 
 ## Running this project
 
-**Configuration**
+**Source**
+
 `git clone` the repo:
 ```
 $ git clone git@github.com:malminhas/mapsearcher.git
