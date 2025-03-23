@@ -32,6 +32,10 @@ Now fire up the backend over that database:
 $ python location_api.py
 ```
 
+Full documentation for the backend API is available at [localhost:8000/redoc](http://localhost:8000/redoc)
+
+<img width="1435" alt="image" src="https://github.com/user-attachments/assets/2bad47c8-d57e-4fb9-a333-94127ad82378" />
+
 **Frontend**
 
 To run the frontend which was entirely built with lovable.dev, make sure you have everything you need to run Vite, TypeScript, React, shadcn-ui and Tailwind locally:
