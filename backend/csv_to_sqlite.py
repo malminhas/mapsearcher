@@ -40,7 +40,7 @@ import matplotlib.pyplot as plt # type: ignore
 import seaborn as sns # type: ignore
 import subprocess # type: ignore
 
-__version__ = '1.0.1'
+__version__ = '1.0.2'
 __date__ = '23-03-2025'
 __author__ = 'Mal Minhas <mal@malm.co.uk>'
 
@@ -319,16 +319,19 @@ def print_database_info(info):
             constraint_str = f" ({', '.join(constraints)})" if constraints else ""
             print(f"    - {col['name']}: {col['type']}{constraint_str}")
 
-def convert_csv_to_sqlite(csv_file, db_name='locations.db', table_name='location_data', verbose=False):
+def convert_csv_to_sqlite(csv_file, db_name='data/locations.db', table_name='location_data', verbose=False):
     """
     Convert a CSV file to SQLite database using pandas.
     
     Args:
         csv_file (str): Path to the CSV file
-        db_name (str): Name of the SQLite database file
-        table_name (str): Name of the table in the database
+        db_name (str): Path to the SQLite database
+        table_name (str): Name of the table to create
         verbose (bool): Enable verbose logging
     """
+    # Create data directory if it doesn't exist
+    os.makedirs(os.path.dirname(db_name), exist_ok=True)
+    
     if verbose:
         logging.basicConfig(level=logging.INFO)
     
@@ -495,25 +498,24 @@ def get_basic_database_info(db_name, csv_file=None):
     return info
 
 def main():
-    args = docopt(__doc__, version=f"{__version__} {__date__} {__author__}")
-    
-    # Set up logging
-    logging.basicConfig(level=logging.DEBUG if args['--verbose'] else logging.INFO)
+    """Main entry point."""
+    args = docopt(__doc__, version=f"csv_to_sqlite {__version__}")
     
     # Get the CSV file path
     csv_file = args['<csv_file>'] or "locations.csv"
     csv_path = Path(csv_file)
     
     if not csv_path.exists():
-        print(f"Error: {csv_file} not found!")
+        print(f"Error: CSV file not found: {csv_file}")
         sys.exit(1)
     
-    db_name = 'locations.db'
+    db_name = 'data/locations.db'
     
     # Handle create flag
-    if args['--create'] and os.path.exists(db_name):
-        print(f"Removing existing database: {db_name}")
-        os.remove(db_name)
+    if args['--create']:
+        if os.path.exists(db_name):
+            print(f"Removing existing database: {db_name}")
+            os.remove(db_name)
     
     # Handle graph flag
     if args['--graph']:

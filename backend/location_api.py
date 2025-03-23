@@ -91,7 +91,7 @@ from functools import lru_cache # type: ignore
 import time # type: ignore
 from contextlib import contextmanager
 import os
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.cors import CORSMiddleware # type: ignore
 from contextlib import asynccontextmanager
 import logging
 from datetime import datetime
@@ -186,7 +186,7 @@ def setup_logging():
 logger = setup_logging()
 
 # Initialize database name
-DB_NAME = 'locations.db'
+DB_NAME = 'data/locations.db'
 
 # Cache settings
 CACHE_SIZE = 1000  # Number of postcodes to cache
