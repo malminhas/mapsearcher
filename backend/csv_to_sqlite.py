@@ -16,14 +16,14 @@ Options:
     -n N, --num-entries N  Number of top entries to show in graph [default: 30]
 
 Arguments:
-    csv_file           Path to the CSV file [default: gumtree_83.csv]
+    csv_file           Path to the CSV file [default: locations.csv]
 """
 
 """
 Example SQL query to get the top 10 towns by count:
 
 SELECT town, COUNT(*) as count
-FROM gumtree_data
+FROM location_data
 GROUP BY town
 ORDER BY count DESC
 LIMIT 10;
@@ -40,9 +40,9 @@ import matplotlib.pyplot as plt # type: ignore
 import seaborn as sns # type: ignore
 import subprocess # type: ignore
 
-__version__ = '1.0.0'
-__date__ = '21-03-2025'
-__author__ = 'Mal Minhas <mal.minhas@gumtree.com>'
+__version__ = '1.0.1'
+__date__ = '23-03-2025'
+__author__ = 'Mal Minhas <mal@malm.co.uk>'
 
 def rename_columns(df):
     """
@@ -123,7 +123,7 @@ def get_database_info(db_name, csv_file=None):
         info['tables'][table_name]['unique_postcodes'] = unique_postcodes
         
         # Check for unique latitude/longitude combinations
-        cursor.execute("SELECT COUNT(DISTINCT LATITUDE || ',' || LONGITUDE) FROM gumtree_data;")
+        cursor.execute("SELECT COUNT(DISTINCT LATITUDE || ',' || LONGITUDE) FROM location_data;")
         unique_locations = cursor.fetchone()[0]
         info['tables'][table_name]['unique_locations'] = unique_locations
         
@@ -177,7 +177,7 @@ def get_duplicate_postcodes(db_name, limit=5):
     cursor = conn.cursor()
     
     # Get the actual column names from the database
-    cursor.execute("PRAGMA table_info(gumtree_data);")
+    cursor.execute("PRAGMA table_info(location_data);")
     columns = [col[1] for col in cursor.fetchall()]
     
     # Find the matching columns (case-insensitive)
@@ -196,7 +196,7 @@ def get_duplicate_postcodes(db_name, limit=5):
     query = f"""
     WITH DuplicatePostcodes AS (
         SELECT Postcode, COUNT(*) as count
-        FROM gumtree_data
+        FROM location_data
         GROUP BY Postcode
         HAVING COUNT(*) > 1
         ORDER BY count DESC
@@ -204,7 +204,7 @@ def get_duplicate_postcodes(db_name, limit=5):
     )
     SELECT d.Postcode, d.count, g."{title_col}", g."{desc_col}", g."{price_col}", g."{county_col}"
     FROM DuplicatePostcodes d
-    JOIN gumtree_data g ON d.Postcode = g.Postcode
+    JOIN location_data g ON d.Postcode = g.Postcode
     ORDER BY d.count DESC, d.Postcode, g."{title_col}"
     """
     
@@ -285,7 +285,7 @@ def print_database_info(info):
         if table_info['row_count'] != table_info['unique_postcodes']:
             print(f"  ⚠️  WARNING: Not all rows have unique postcodes!")
             print("\n  Examples of duplicate postcodes:")
-            print(get_duplicate_postcodes('gumtree.db'))
+            print(get_duplicate_postcodes('locations.db'))
         
         print(f"  Unique Locations (LATITUDE,LONGITUDE): {table_info['unique_locations']:,}")
         if table_info['row_count'] != table_info['unique_locations']:
@@ -319,7 +319,7 @@ def print_database_info(info):
             constraint_str = f" ({', '.join(constraints)})" if constraints else ""
             print(f"    - {col['name']}: {col['type']}{constraint_str}")
 
-def convert_csv_to_sqlite(csv_file, db_name='gumtree.db', table_name='gumtree_data', verbose=False):
+def convert_csv_to_sqlite(csv_file, db_name='locations.db', table_name='location_data', verbose=False):
     """
     Convert a CSV file to SQLite database using pandas.
     
@@ -395,7 +395,7 @@ def generate_bar_graph(db_name, group_by, num_entries=30):
     
     # First, get the actual column name from the database
     cursor = conn.cursor()
-    cursor.execute("PRAGMA table_info(gumtree_data);")
+    cursor.execute("PRAGMA table_info(location_data);")
     columns = [col[1] for col in cursor.fetchall()]
     
     # Find the matching column (case-insensitive)
@@ -410,7 +410,7 @@ def generate_bar_graph(db_name, group_by, num_entries=30):
     # Query to get the data using the correct column name
     query = f"""
     SELECT "{matching_column}", COUNT(*) as count
-    FROM gumtree_data
+    FROM location_data
     GROUP BY "{matching_column}"
     ORDER BY count DESC
     LIMIT {num_entries}
@@ -501,14 +501,14 @@ def main():
     logging.basicConfig(level=logging.DEBUG if args['--verbose'] else logging.INFO)
     
     # Get the CSV file path
-    csv_file = args['<csv_file>'] or "gumtree_83.csv"
+    csv_file = args['<csv_file>'] or "locations.csv"
     csv_path = Path(csv_file)
     
     if not csv_path.exists():
         print(f"Error: {csv_file} not found!")
         sys.exit(1)
     
-    db_name = 'gumtree.db'
+    db_name = 'locations.db'
     
     # Handle create flag
     if args['--create'] and os.path.exists(db_name):
@@ -530,7 +530,7 @@ def main():
             print(f"Error: Invalid column name '{group_by}'. Available columns:")
             conn = sqlite3.connect(db_name)
             cursor = conn.cursor()
-            cursor.execute("PRAGMA table_info(gumtree_data);")
+            cursor.execute("PRAGMA table_info(location_data);")
             columns = [col[1] for col in cursor.fetchall()]
             conn.close()
             print(", ".join(columns))

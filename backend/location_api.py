@@ -186,7 +186,7 @@ def setup_logging():
 logger = setup_logging()
 
 # Initialize database name
-DB_NAME = 'gumtree.db'
+DB_NAME = 'locations.db'
 
 # Cache settings
 CACHE_SIZE = 1000  # Number of postcodes to cache
@@ -238,19 +238,19 @@ def init_db():
         # Create index on Postcode if it doesn't exist
         cursor.execute("""
         CREATE INDEX IF NOT EXISTS idx_postcode 
-        ON gumtree_data(Postcode)
+        ON location_data(Postcode)
         """)
         
         # Create index on Town if it doesn't exist
         cursor.execute("""
         CREATE INDEX IF NOT EXISTS idx_town 
-        ON gumtree_data(Town)
+        ON location_data(Town)
         """)
         
         # Create index on County if it doesn't exist
         cursor.execute("""
         CREATE INDEX IF NOT EXISTS idx_county 
-        ON gumtree_data(County)
+        ON location_data(County)
         """)
         
         conn.commit()
@@ -269,7 +269,7 @@ def get_location_from_cache(postcode: str) -> Optional[LocationResponse]:
         # Optimized query with index usage
         query = """
         SELECT Postcode, Latitude, Longitude, Town, County, Street1, District1, District2
-        FROM gumtree_data
+        FROM location_data
         WHERE Postcode = ?
         LIMIT 1
         """
@@ -310,7 +310,7 @@ def search_locations(query: str, field: str, limit: int = 1000) -> List[Location
         cursor = conn.cursor()
         
         # Get actual column names from the database
-        cursor.execute("PRAGMA table_info(gumtree_data)")
+        cursor.execute("PRAGMA table_info(location_data)")
         columns = {row['name'].lower(): row['name'] for row in cursor.fetchall()}
         
         # Find the correct column name (case-insensitive)
@@ -327,7 +327,7 @@ def search_locations(query: str, field: str, limit: int = 1000) -> List[Location
             normalized_query = query.replace(' ', '').upper()
             search_query = f"""
             SELECT Postcode, Latitude, Longitude, Town, County, Street1, District1, District2
-            FROM gumtree_data
+            FROM location_data
             WHERE REPLACE(UPPER({actual_field}), ' ', '') LIKE ?
             ORDER BY Postcode ASC
             LIMIT {limit}
@@ -337,7 +337,7 @@ def search_locations(query: str, field: str, limit: int = 1000) -> List[Location
         elif field_lower == 'town':
             search_query = f"""
             SELECT Postcode, Latitude, Longitude, Town, County, Street1, District1, District2
-            FROM gumtree_data
+            FROM location_data
             WHERE UPPER({actual_field}) LIKE UPPER(?) OR UPPER(District1) LIKE UPPER(?) OR UPPER(District2) LIKE UPPER(?)
             ORDER BY Postcode ASC
             LIMIT {limit}
@@ -347,7 +347,7 @@ def search_locations(query: str, field: str, limit: int = 1000) -> List[Location
             # Use LIKE for partial matches
             search_query = f"""
             SELECT Postcode, Latitude, Longitude, Town, County, Street1, District1, District2
-            FROM gumtree_data
+            FROM location_data
             WHERE UPPER({actual_field}) LIKE UPPER(?)
             ORDER BY Postcode ASC
             LIMIT {limit}
@@ -380,7 +380,7 @@ async def lifespan(app: FastAPI):
     try:
         with get_db_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT COUNT(*) FROM gumtree_data")
+            cursor.execute("SELECT COUNT(*) FROM location_data")
             count = cursor.fetchone()[0]
             logger.info(f"Database connection verified. Found {count} records.")
     except Exception as e:
@@ -857,7 +857,7 @@ async def health_check():
     try:
         with get_db_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT COUNT(*) FROM gumtree_data")
+            cursor.execute("SELECT COUNT(*) FROM location_data")
             count = cursor.fetchone()[0]
             logger.info(f"Health check successful. Database record count: {count}")
             return HealthResponse(

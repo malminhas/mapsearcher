@@ -33,7 +33,7 @@ local.env
 *.sw?
 
 # Database files
-*gumtree*
+locations.csv
 *.db
 *.sqlite
 *.sqlite3
