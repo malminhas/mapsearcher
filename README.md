@@ -8,9 +8,16 @@ A web application for exploring UK postcodes, districts and towns.
 
 ## Running this project
 
+**Configuration**
+`git clone` the repo:
+```
+$ git clone git@github.com:malminhas/mapsearcher.git
+```
+
 **Backend**
 
-You will first need to build your `sqlite3` locations db from a file which you need locally.  You build the database as follows:
+You will first need to build your `sqlite3` `locations.db` from a csv file which you need to have locally which contains [UK Postcode Address Format (PAF)](https://www.poweredbypaf.com/) data.  You have to secure that file under licence from a company such as [hopewiser](https://www.hopewiser.com/address-validation/).  
+Once you have the csv file, you can build a database as follows:
 ```
 $ cd backend
 $ cd python csv_to_sqlite.py -c locations.csv
@@ -19,7 +26,7 @@ Conversion complete! Database saved as: locations.db
 Final row count in database: 1,999,624
 ```
 
-Now fire up the backend:
+Now fire up the backend over that database:
 ```
 $ python location_api.py
 ```
@@ -68,16 +75,16 @@ Follow these steps:
 
 ```sh
 # Step 1: Clone the repository using the project's Git URL.
-git clone git@github.com:malminhas/mapsearcher.git
+$ git clone git@github.com:malminhas/mapsearcher.git
 
 # Step 2: Navigate to the project directory.
-cd mapsearcher
+$ cd mapsearcher
 
 # Step 3: Install the necessary dependencies.
-npm i
+$ npm i
 
 # Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+$ npm run dev
 ```
 
 **Edit a file directly in GitHub**
