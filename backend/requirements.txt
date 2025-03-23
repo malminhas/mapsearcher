@@ -1,10 +1,4 @@
 fastapi==0.109.2
 uvicorn==0.27.1
 pydantic>=1.8.0
-pytest==8.0.0
 python-dotenv==1.0.1
-httpx==0.26.0  # Required for TestClient 
-pandas==2.2.3
-matplotlib==3.8.0
-docopt==0.6.2
-seaborn==0.13.2
