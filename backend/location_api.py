@@ -35,6 +35,14 @@ Performance Optimizations:
    - Specific error messages for different failure types
    - Health check endpoint with database status
 
+Performance Considerations:
+-------------------------
+- First request for a postcode: ~10-50ms (database lookup)
+- Subsequent requests: ~1-5ms (cache hit)
+- Concurrent requests: Handled efficiently with connection pooling
+- Memory usage: ~100MB for cache (1000 entries)
+- Database size impact: ~10-20% additional space for indexes
+
 Security Features:
 ----------------
 1. Input Validation:
@@ -73,13 +81,6 @@ Usage:
 3. View API documentation:
    http://localhost:8000/docs
 
-Performance Considerations:
--------------------------
-- First request for a postcode: ~10-50ms (database lookup)
-- Subsequent requests: ~1-5ms (cache hit)
-- Concurrent requests: Handled efficiently with connection pooling
-- Memory usage: ~100MB for cache (1000 entries)
-- Database size impact: ~10-20% additional space for indexes
 """
 
 from fastapi import FastAPI, HTTPException, Depends, Query, Path # type: ignore
@@ -94,6 +95,7 @@ import os
 from fastapi.middleware.cors import CORSMiddleware # type: ignore
 from contextlib import asynccontextmanager
 import logging
+from logging.handlers import RotatingFileHandler
 from datetime import datetime
 import sys
 import re
@@ -172,6 +174,7 @@ def setup_logging():
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
         handlers=[
             logging.FileHandler(log_file),
+            RotatingFileHandler(log_file, maxBytes=10 * 1024 * 1024, backupCount=5), # 10MB max file size, 5 backups
             logging.StreamHandler(sys.stdout)  # Ensure logs go to stdout
         ],
         force=True  # Force reconfiguration of the root logger
