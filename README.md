@@ -17,7 +17,7 @@ $ git clone git@github.com:malminhas/mapsearcher.git
 
 **Backend**
 
-You will first need to build your `sqlite3` `locations.db` from a csv file which you need to have locally which contains [UK Postcode Address Format (PAF)](https://www.poweredbypaf.com/) data.  You have to secure that file under licence from a company such as [hopewiser](https://www.hopewiser.com/address-validation/).  
+You will first need to build your `sqlite3` `locations.db` from a csv file which you need to have locally which contains information from the [UK Postcode Address File (PAF)](https://www.poweredbypaf.com/) data.  Specifically in this case information about UK street, district, postcode, town, county.  You have to secure that file under licence from a company such as [hopewiser](https://www.hopewiser.com/address-validation/).
 Once you have the csv file, you can build a database as follows:
 ```
 $ cd backend
