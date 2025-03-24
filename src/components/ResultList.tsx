@@ -46,9 +46,9 @@ const ResultList: React.FC<ResultListProps> = ({
           <>
             {locations.length > 0 ? (
               <div className={cn("space-y-1.5", loading ? "opacity-50" : "animate-fade-in")}>
-                {locations.map((location) => (
+                {locations.map((location, index) => (
                   <LocationCard
-                    key={`${location.postcode}-${location.street1}-${location.latitude}-${location.longitude}`.replace(/\s+/g, '')}
+                    key={`${location.postcode}-${index}`}
                     location={location}
                     isSelected={selectedLocation?.postcode === location.postcode}
                     onClick={() => onSelectLocation(location)}
