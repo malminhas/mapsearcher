@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import Map from '@/components/Map';
-import SearchPanel from '@/components/SearchPanel';
+import { SearchPanel } from '@/components/search';
 import ResultList from '@/components/ResultList';
 import { Location, SearchType } from '@/types';
 import { searchLocations } from '@/lib/api';
