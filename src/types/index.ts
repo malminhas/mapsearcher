@@ -1,4 +1,3 @@
-
 export type SearchType = 'postcode' | 'town' | 'county';
 
 export interface Location {
@@ -13,4 +12,5 @@ export interface Location {
   town: string;      // E.g. Leicester
   county: string;    // E.g. Leicestershire
   country: string;   // E.g. England
+  isMock?: boolean;  // Flag to indicate if this is mock data
 }

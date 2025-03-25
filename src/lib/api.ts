@@ -1,4 +1,3 @@
-
 import { Location, SearchType } from "@/types";
 import { toast } from "@/components/ui/use-toast";
 import { getMockPostcode, mockTownMap, mockCountyMap } from "./mockData";
@@ -12,6 +11,25 @@ const isPreviewEnvironment = (): boolean => {
          window.location.hostname.includes('staging');
 };
 
+// Safe fetch wrapper that handles network errors
+const safeFetch = async (url: string): Promise<Response> => {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2000);
+
+    const response = await fetch(url, {
+      signal: controller.signal,
+    }).catch((error) => {
+      throw new Error('NetworkError');
+    });
+
+    clearTimeout(timeoutId);
+    return response;
+  } catch (error) {
+    throw new Error('NetworkError');
+  }
+};
+
 export async function searchLocations(type: SearchType, value: string, limit: number = 1000): Promise<Location[]> {
   if (!value.trim()) {
     return [];
@@ -22,32 +40,42 @@ export async function searchLocations(type: SearchType, value: string, limit: nu
     console.log("Using mock data for preview environment");
     return getMockLocations(type, value, limit);
   }
-  
+
+  let useMockData = false;
+  let response: Response | null = null;
+
   try {
-    const response = await fetch(`${API_BASE_URL}/search/${type}/${encodeURIComponent(value)}?limit=${limit}`);
-    
+    response = await safeFetch(
+      `${API_BASE_URL}/search/${type}/${encodeURIComponent(value)}?limit=${limit}`
+    );
+  } catch (error) {
+    useMockData = true;
+  }
+
+  // If we got a network error or no response, use mock data
+  if (useMockData || !response) {
+    console.log("Network error or backend not available, using mock data");
+    return getMockLocations(type, value, limit);
+  }
+
+  try {
     if (!response.ok) {
       const errorData = await response.json();
       throw new Error(errorData.detail || `Error: ${response.status}`);
     }
-    
+
     const data = await response.json();
     let locations = data.locations || [];
-    
+
     // Filter out locations with longitude 0 and latitude 0 when searching by town or county
     if (type === 'town' || type === 'county') {
       locations = locations.filter(location => !(location.longitude === 0 && location.latitude === 0));
     }
-    
+
     return locations;
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'An unexpected error occurred';
-    toast({
-      title: "Search Failed",
-      description: message,
-      variant: "destructive",
-    });
-    throw error;
+    console.log("Error processing response, using mock data:", error);
+    return getMockLocations(type, value, limit);
   }
 }
 
@@ -63,22 +91,28 @@ function getMockLocations(type: SearchType, value: string, limit: number): Locat
     
     case 'town':
       // Handle town searches
-      Object.keys(mockTownMap).forEach(town => {
-        if (town.includes(searchValue)) {
-          results = [...results, ...mockTownMap[town]];
+      for (const [town, locations] of mockTownMap.entries()) {
+        if (town.toLowerCase().includes(searchValue)) {
+          results.push(...locations);
         }
-      });
+      }
       break;
     
     case 'county':
       // Handle county searches
-      Object.keys(mockCountyMap).forEach(county => {
-        if (county.includes(searchValue)) {
-          results = [...results, ...mockCountyMap[county]];
+      for (const [county, locations] of mockCountyMap.entries()) {
+        if (county.toLowerCase().includes(searchValue)) {
+          results.push(...locations);
         }
-      });
+      }
       break;
   }
+
+  // Add isMock flag to all results
+  results = results.map(location => ({
+    ...location,
+    isMock: true
+  }));
 
   // Simulate the delay of a real API call
   return results.slice(0, limit);

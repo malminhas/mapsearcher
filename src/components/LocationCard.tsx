@@ -26,6 +26,11 @@ const LocationCard: React.FC<LocationCardProps> = ({ location, isSelected, onCli
             <h3 className="font-medium text-foreground group-hover:text-primary transition-colors">
               {location.postcode}
             </h3>
+            {location.isMock && (
+              <span className="px-1.5 py-0.5 text-[10px] font-medium bg-yellow-100 text-yellow-800 rounded">
+                MOCK
+              </span>
+            )}
             <div className="text-sm text-muted-foreground flex items-center">
               {[
                 location.street1,
