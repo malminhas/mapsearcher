@@ -1,34 +1,39 @@
-
 import React, { useState } from 'react';
 import Map from '@/components/Map';
 import { SearchPanel } from '@/components/search';
 import ResultList from '@/components/ResultList';
 import { Location, SearchType } from '@/types';
 import { searchLocations } from '@/lib/api';
+import RadiusSlider from '@/components/RadiusSlider';
+import { useToast } from '@/hooks/use-toast';
 
 const Index = () => {
   const [locations, setLocations] = useState<Location[]>([]);
   const [selectedLocation, setSelectedLocation] = useState<Location | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [radiusKm, setRadiusKm] = useState(15);
+  const { toast } = useToast();
 
-  const handleSearch = async (type: SearchType, value: string, limit?: number) => {
+  const handleSearch = async (type: SearchType, value: string, limit: number) => {
     if (!value.trim()) return;
     
     setLoading(true);
     setError('');
-    
+    setLocations([]);
+    setSelectedLocation(null);
+
     try {
       const results = await searchLocations(type, value, limit);
       setLocations(results);
-      setSelectedLocation(null);
-      
-      if (results.length === 0) {
-        setError(`No locations found for ${type}: "${value}"`);
-      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An unexpected error occurred');
-      setLocations([]);
+      const errorMessage = err instanceof Error ? err.message : 'Search failed';
+      setError(errorMessage);
+      toast({
+        title: 'Search Failed',
+        description: errorMessage,
+        variant: 'destructive'
+      });
     } finally {
       setLoading(false);
     }
@@ -49,10 +54,17 @@ const Index = () => {
         <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-6 min-h-0">
           <div className="flex flex-col space-y-4 min-h-0">
             <SearchPanel onSearch={handleSearch} loading={loading} />
+            {selectedLocation && (
+              <RadiusSlider
+                value={radiusKm}
+                onChange={setRadiusKm}
+              />
+            )}
             <div className="flex-1 min-h-0">
               <Map 
                 locations={locations} 
                 selectedLocation={selectedLocation} 
+                radiusKm={radiusKm}
               />
             </div>
           </div>
@@ -64,6 +76,7 @@ const Index = () => {
               error={error}
               selectedLocation={selectedLocation}
               onSelectLocation={handleSelectLocation}
+              radiusKm={radiusKm}
             />
           </div>
         </div>

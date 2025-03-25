@@ -1,57 +1,77 @@
 import React from 'react';
+import { MapPin } from 'lucide-react';
 import { Location } from '@/types';
 import { cn } from '@/lib/utils';
-import { MapPin } from 'lucide-react';
+import { isWithinRadius } from '@/lib/geo-utils';
 
 interface LocationCardProps {
   location: Location;
   isSelected: boolean;
   onClick: () => void;
+  selectedLocation?: Location | null;
+  radiusKm?: number;
 }
 
-const LocationCard: React.FC<LocationCardProps> = ({ location, isSelected, onClick }) => {
+const LocationCard: React.FC<LocationCardProps> = ({
+  location,
+  isSelected,
+  onClick,
+  selectedLocation,
+  radiusKm = 15
+}) => {
+  const isWithinGeofence = selectedLocation && isWithinRadius(
+    location,
+    selectedLocation,
+    radiusKm
+  );
+
   return (
-    <div 
-      className={cn(
-        "border rounded-lg p-2 transition-all duration-300 cursor-pointer transform-gpu",
-        "hover:shadow-elevated hover:-translate-y-0.5",
-        "border-border/50 group",
-        isSelected ? "ring-2 ring-primary/30 bg-primary/5" : "hover:bg-accent/50"
-      )}
+    <button
       onClick={onClick}
+      className={cn(
+        'w-full text-left p-3 rounded-lg transition-all',
+        'hover:bg-accent/50 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1',
+        isSelected && 'bg-accent',
+        isWithinGeofence && !isSelected && 'bg-green-50 dark:bg-green-950/30'
+      )}
     >
-      <div className="flex items-center justify-between">
-        <div className="flex-1">
-          <div className="flex items-center gap-2">
-            <h3 className="font-medium text-foreground group-hover:text-primary transition-colors">
-              {location.postcode}
-            </h3>
-            {location.isMock && (
-              <span className="px-1.5 py-0.5 text-[10px] font-medium bg-yellow-100 text-yellow-800 rounded">
-                MOCK
-              </span>
-            )}
-            <div className="text-sm text-muted-foreground flex items-center">
-              {[
-                location.street1,
-                location.district1,
-                location.district2,
-                location.town,
-                location.county
-              ]
-                .filter(Boolean)  // Remove empty/null values
-                .join(", ")}
-            </div>
-            <div className="text-xs text-muted-foreground/70 ml-auto">
-              {location.latitude.toFixed(4)}, {location.longitude.toFixed(4)}
-            </div>
-          </div>
-        </div>
-        <div className="ml-2 text-primary/70 group-hover:text-primary transition-colors flex items-center justify-center">
+      <div className="flex items-start gap-2">
+        <div className={cn(
+          'mt-1 transition-colors',
+          isSelected ? 'text-primary' : 'text-muted-foreground',
+          isWithinGeofence && !isSelected && 'text-green-500'
+        )}>
           <MapPin size={isSelected ? 16 : 14} className="transition-all" />
         </div>
+        <div>
+          <div className="flex items-baseline gap-2">
+            <h3 className={cn(
+              'font-medium',
+              isSelected ? 'text-primary' : 'text-foreground',
+              isWithinGeofence && !isSelected && 'text-green-600 dark:text-green-400'
+            )}>
+              {location.postcode}
+            </h3>
+            {isWithinGeofence && !isSelected && (
+              <span className="text-xs text-green-500 dark:text-green-400">Within {radiusKm}km</span>
+            )}
+          </div>
+          <p className="text-sm text-muted-foreground">
+            {location.street1}
+            {location.street2 && `, ${location.street2}`}
+          </p>
+          <p className="text-sm text-muted-foreground">
+            {location.district1 && `${location.district1}`}
+            {location.district1 && location.district2 && ' · '}
+            {location.district2 && `${location.district2}`}
+            {(location.district1 || location.district2) && location.town && ' · '}
+            {location.town}
+            {location.town && location.county && ' · '}
+            {location.county}
+          </p>
+        </div>
       </div>
-    </div>
+    </button>
   );
 };
 

@@ -1,18 +1,23 @@
-
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { Location } from '@/types';
+import { isWithinRadius, calculateDistance } from '@/lib/geo-utils';
 
 // Use environment variable for Mapbox token if available
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN || '';
 
+const DEFAULT_RADIUS_KM = 15;
+const GEOFENCE_SOURCE_ID = 'geofence-source';
+const GEOFENCE_LAYER_ID = 'geofence-layer';
+
 interface MapProps {
   locations: Location[];
   selectedLocation?: Location | null;
+  radiusKm?: number;
 }
 
-const Map: React.FC<MapProps> = ({ locations, selectedLocation }) => {
+const Map: React.FC<MapProps> = ({ locations, selectedLocation, radiusKm = DEFAULT_RADIUS_KM }) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const markersRef = useRef<mapboxgl.Marker[]>([]);
@@ -53,6 +58,30 @@ const Map: React.FC<MapProps> = ({ locations, selectedLocation }) => {
       );
 
       map.current.on('load', () => {
+        // Add empty geofence source and layer
+        map.current?.addSource(GEOFENCE_SOURCE_ID, {
+          type: 'geojson',
+          data: {
+            type: 'Feature',
+            geometry: {
+              type: 'Point',
+              coordinates: [0, 0]
+            },
+            properties: {}
+          }
+        });
+
+        map.current?.addLayer({
+          id: GEOFENCE_LAYER_ID,
+          type: 'fill',
+          source: GEOFENCE_SOURCE_ID,
+          paint: {
+            'fill-color': '#3b82f6',
+            'fill-opacity': 0.15,
+            'fill-outline-color': '#3b82f6'
+          }
+        });
+
         setMapLoaded(true);
       });
     } catch (error) {
@@ -68,7 +97,23 @@ const Map: React.FC<MapProps> = ({ locations, selectedLocation }) => {
     };
   }, [apiKey]);
 
-  // Update markers when locations change
+  // Memoize the geofence check function
+  const isWithinGeofence = React.useCallback((location: Location) => {
+    if (!selectedLocation) return false;
+    
+    // Calculate distance using the Haversine formula
+    const distance = calculateDistance(
+      location.latitude,
+      location.longitude,
+      selectedLocation.latitude,
+      selectedLocation.longitude
+    );
+    
+    // Compare with radius in kilometers
+    return distance <= radiusKm;
+  }, [selectedLocation, radiusKm]);
+
+  // Update markers when locations or radius changes
   useEffect(() => {
     if (!map.current || !mapLoaded || locations.length === 0) return;
     
@@ -80,39 +125,63 @@ const Map: React.FC<MapProps> = ({ locations, selectedLocation }) => {
     const bounds = new mapboxgl.LngLatBounds();
     
     locations.forEach(location => {
-      // Format street address (combining street1 and street2 if both exist)
+      // Check if location is within the geofence
+      const isWithin = selectedLocation ? isWithinGeofence(location) : false;
+      const isSelected = selectedLocation?.postcode === location.postcode;
+      
+      // Format street address
       const streetAddress = location.street1 + (location.street2 ? `, ${location.street2}` : '');
       
+      // Create popup with location info
+      const popup = new mapboxgl.Popup({
+        offset: 25,
+        closeButton: false,
+        closeOnClick: false,
+        maxWidth: '300px',
+        className: 'location-popup'
+      }).setHTML(`
+        <div class="p-2">
+          <h3 class="text-sm font-medium">${location.postcode}</h3>
+          <p class="text-xs text-gray-500 mb-1">${streetAddress}</p>
+          <p class="text-xs text-gray-500">
+            ${location.district1 ? `${location.district1}` : ''}
+            ${location.district1 && location.district2 ? ' · ' : ''}
+            ${location.district2 ? `${location.district2}` : ''}
+            ${(location.district1 || location.district2) && location.town ? ' · ' : ''}
+            ${location.town}
+            ${location.town && location.county ? ' · ' : ''}
+            ${location.county}
+          </p>
+        </div>
+      `);
+
       const marker = new mapboxgl.Marker({
-        color: selectedLocation?.postcode === location.postcode ? '#3b82f6' : '#6b7280',
-        scale: selectedLocation?.postcode === location.postcode ? 1 : 0.8,
+        color: isSelected ? '#3b82f6' : isWithin ? '#22c55e' : '#6b7280',
+        scale: isSelected ? 1 : 0.8,
       })
-        .setLngLat([location.longitude, location.latitude])
-        .setPopup(
-          new mapboxgl.Popup({ offset: 25, closeButton: false, maxWidth: '300px' }).setHTML(`
-            <div class="p-2">
-              <h3 class="text-sm font-medium">${location.postcode}</h3>
-              <p class="text-xs text-gray-500 mb-1">${streetAddress}</p>
-              <p class="text-xs text-gray-500">
-                ${location.district1 ? `${location.district1}` : ''}
-                ${location.district1 && location.district2 ? ' · ' : ''}
-                ${location.district2 ? `${location.district2}` : ''}
-                ${(location.district1 || location.district2) && location.town ? ' · ' : ''}
-                ${location.town}
-                ${location.town && location.county ? ' · ' : ''}
-                ${location.county}
-              </p>
-            </div>
-          `)
-        );
+        .setLngLat([location.longitude, location.latitude]);
+
+      // Add hover events for non-selected markers
+      if (!isSelected) {
+        const markerElement = marker.getElement();
+        
+        markerElement.addEventListener('mouseenter', () => {
+          marker.setPopup(popup);
+          popup.addTo(map.current!);
+        });
+        
+        markerElement.addEventListener('mouseleave', () => {
+          popup.remove();
+        });
+      }
         
       marker.addTo(map.current!);
       markersRef.current.push(marker);
       bounds.extend([location.longitude, location.latitude]);
     });
     
-    // Only fit bounds if we have multiple locations
-    if (locations.length > 1) {
+    // Only fit bounds if we have multiple locations and no selected location
+    if (locations.length > 1 && !selectedLocation) {
       map.current.fitBounds(bounds, {
         padding: { top: 50, bottom: 50, left: 50, right: 50 },
         maxZoom: 15,
@@ -121,49 +190,140 @@ const Map: React.FC<MapProps> = ({ locations, selectedLocation }) => {
         essential: true
       });
     }
-  }, [locations, mapLoaded, selectedLocation]);
+  }, [locations, mapLoaded, selectedLocation, isWithinGeofence, radiusKm]);
 
-  // Handle selected location changes
+  // Calculate zoom level based on radius and viewport
+  const calculateZoomForRadius = useCallback(() => {
+    if (!map.current || !selectedLocation) return;
+
+    const container = map.current.getContainer();
+    const width = container.clientWidth;
+    const height = container.clientHeight;
+    
+    // Calculate the diagonal of the viewport in pixels
+    const viewportDiagonal = Math.sqrt(width * width + height * height);
+    
+    // Convert radius from kilometers to meters
+    const radiusMeters = radiusKm * 1000;
+    
+    // Calculate the meters per pixel at the current latitude
+    const metersPerPixel = 156543.03392 * Math.cos(selectedLocation.latitude * Math.PI / 180);
+    
+    // Calculate the target zoom level
+    // Multiply radiusMeters by 4 to show more context around the circle
+    const targetZoom = Math.log2(viewportDiagonal * metersPerPixel / (radiusMeters * 4));
+    
+    // Subtract 1 zoom level to zoom out more
+    return Math.min(targetZoom - 1, 15);
+  }, [selectedLocation, radiusKm]);
+
+  // Handle selected location changes and update geofence
   useEffect(() => {
-    if (!map.current || !mapLoaded || !selectedLocation) return;
+    if (!map.current || !mapLoaded) return;
     
-    // Fly to the selected location
-    map.current.flyTo({
-      center: [selectedLocation.longitude, selectedLocation.latitude],
-      zoom: 14,
-      essential: true,
-      duration: 1200,
-      padding: { top: 50, bottom: 50, left: 50, right: 50 }
-    });
+    // Remove any existing popups when selection changes
+    const popups = document.getElementsByClassName('mapboxgl-popup');
+    while (popups[0]) {
+      popups[0].remove();
+    }
     
-    // Update marker colors
-    markersRef.current.forEach(marker => {
-      const lngLat = marker.getLngLat();
+    if (selectedLocation) {
+      // Generate circle points using great circle distance
+      const points: [number, number][] = [];
+      const EARTH_RADIUS = 6371; // Earth's radius in kilometers
+      const STEPS = 128; // More points for smoother circle
       
-      if (lngLat.lng === selectedLocation.longitude && lngLat.lat === selectedLocation.latitude) {
-        // Format street address (combining street1 and street2 if both exist)
-        const streetAddress = selectedLocation.street1 + (selectedLocation.street2 ? `, ${selectedLocation.street2}` : '');
+      for (let i = 0; i < STEPS; i++) {
+        const bearing = (i * 360) / STEPS;
+        const bearingRad = bearing * Math.PI / 180;
+        const centerLat = selectedLocation.latitude * Math.PI / 180;
+        const centerLon = selectedLocation.longitude * Math.PI / 180;
+        const angularDistance = radiusKm / EARTH_RADIUS;
+
+        // Calculate point using spherical law of cosines
+        const lat2 = Math.asin(
+          Math.sin(centerLat) * Math.cos(angularDistance) +
+          Math.cos(centerLat) * Math.sin(angularDistance) * Math.cos(bearingRad)
+        );
         
-        marker.setPopup(
-          new mapboxgl.Popup({ offset: 25, closeButton: false, maxWidth: '300px' }).setHTML(`
-            <div class="p-2">
-              <h3 class="text-sm font-medium">${selectedLocation.postcode}</h3>
-              <p class="text-xs text-gray-500 mb-1">${streetAddress}</p>
-              <p class="text-xs text-gray-500">
-                ${selectedLocation.district1 ? `${selectedLocation.district1}` : ''}
-                ${selectedLocation.district1 && selectedLocation.district2 ? ' · ' : ''}
-                ${selectedLocation.district2 ? `${selectedLocation.district2}` : ''}
-                ${(selectedLocation.district1 || selectedLocation.district2) && selectedLocation.town ? ' · ' : ''}
-                ${selectedLocation.town}
-                ${selectedLocation.town && selectedLocation.county ? ' · ' : ''}
-                ${selectedLocation.county}
-              </p>
-            </div>
-          `)
-        ).togglePopup();
+        const lon2 = centerLon + Math.atan2(
+          Math.sin(bearingRad) * Math.sin(angularDistance) * Math.cos(centerLat),
+          Math.cos(angularDistance) - Math.sin(centerLat) * Math.sin(lat2)
+        );
+
+        points.push([lon2 * 180 / Math.PI, lat2 * 180 / Math.PI]);
       }
-    });
-  }, [selectedLocation, mapLoaded]);
+      // Close the circle
+      points.push(points[0]);
+
+      // Update geofence source with the calculated circle
+      const source = map.current.getSource(GEOFENCE_SOURCE_ID) as mapboxgl.GeoJSONSource;
+      source.setData({
+        type: 'Feature',
+        geometry: {
+          type: 'Polygon',
+          coordinates: [points]
+        },
+        properties: {}
+      });
+
+      // Calculate and set the appropriate zoom level
+      const targetZoom = calculateZoomForRadius();
+      
+      // Fly to the selected location with the calculated zoom
+      map.current.flyTo({
+        center: [selectedLocation.longitude, selectedLocation.latitude],
+        zoom: targetZoom,
+        essential: true,
+        duration: 1200,
+        padding: { top: 50, bottom: 50, left: 50, right: 50 }
+      });
+      
+      // Update marker colors and show popup for selected location only
+      markersRef.current.forEach(marker => {
+        const lngLat = marker.getLngLat();
+        
+        if (lngLat.lng === selectedLocation.longitude && lngLat.lat === selectedLocation.latitude) {
+          // Format street address (combining street1 and street2 if both exist)
+          const streetAddress = selectedLocation.street1 + (selectedLocation.street2 ? `, ${selectedLocation.street2}` : '');
+          
+          marker.setPopup(
+            new mapboxgl.Popup({ 
+              offset: 25, 
+              closeButton: true, 
+              maxWidth: '300px',
+              closeOnClick: false 
+            }).setHTML(`
+              <div class="p-2">
+                <h3 class="text-sm font-medium">${selectedLocation.postcode}</h3>
+                <p class="text-xs text-gray-500 mb-1">${streetAddress}</p>
+                <p class="text-xs text-gray-500">
+                  ${selectedLocation.district1 ? `${selectedLocation.district1}` : ''}
+                  ${selectedLocation.district1 && selectedLocation.district2 ? ' · ' : ''}
+                  ${selectedLocation.district2 ? `${selectedLocation.district2}` : ''}
+                  ${(selectedLocation.district1 || selectedLocation.district2) && selectedLocation.town ? ' · ' : ''}
+                  ${selectedLocation.town}
+                  ${selectedLocation.town && selectedLocation.county ? ' · ' : ''}
+                  ${selectedLocation.county}
+                </p>
+              </div>
+            `)
+          ).togglePopup();
+        }
+      });
+    } else {
+      // Clear geofence when no location is selected
+      const source = map.current.getSource(GEOFENCE_SOURCE_ID) as mapboxgl.GeoJSONSource;
+      source.setData({
+        type: 'Feature',
+        geometry: {
+          type: 'Polygon',
+          coordinates: [[]]
+        },
+        properties: {}
+      });
+    }
+  }, [selectedLocation, mapLoaded, radiusKm, calculateZoomForRadius]);
 
   const handleApiKeySubmit = (e: React.FormEvent) => {
     e.preventDefault();
