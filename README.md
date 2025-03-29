@@ -13,6 +13,10 @@ Built with Cursor and Lovable.
 - **Mock Data Support**: Fallback to mock data when backend is unavailable
 - **Modern UI**: Built with React, TypeScript, and shadcn/ui
 
+Type a location string to return a set of related postcode rows.  Select a row to throw an adjustable geofence around that postcode:
+
+<img width="1257" alt="image" src="https://github.com/user-attachments/assets/6690d70e-06fb-4f54-acff-119ccc35f808" />
+
 ## Architecture
 
 ### Frontend (TypeScript + React)
@@ -136,6 +140,8 @@ $ python -m uvicorn location_api:app --reload
 The API documentation will be available at:
 - Swagger UI: http://localhost:8000/docs
 - ReDoc: http://localhost:8000/redoc
+
+<img width="1372" alt="image" src="https://github.com/user-attachments/assets/2fa7044b-e6eb-4583-8137-60daf084ce67" />
 
 ### Frontend Setup
 
