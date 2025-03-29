@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { SearchType } from '@/types';
 import { Search, MapPin, Building, Landmark } from 'lucide-react';
@@ -59,7 +58,7 @@ const SearchInput: React.FC<SearchInputProps> = ({
         {getIcon()}
       </div>
       <input
-        type="text"
+        type="search"
         id={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
@@ -75,15 +74,15 @@ const SearchInput: React.FC<SearchInputProps> = ({
         )}
         disabled={loading}
       />
-      <button 
+      <button
+        type="button"
         onClick={() => onSearch(type, value)}
-        disabled={!value.trim() || loading}
+        disabled={loading || !value.trim()}
         className={cn(
-          "absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-md",
-          "text-muted-foreground hover:text-primary transition-colors",
-          "disabled:opacity-50 disabled:pointer-events-none"
+          "absolute right-3 top-1/2 -translate-y-1/2",
+          "text-muted-foreground hover:text-foreground transition-colors",
+          "disabled:opacity-50 disabled:cursor-not-allowed"
         )}
-        aria-label={`Search by ${type}`}
       >
         <Search size={18} />
       </button>

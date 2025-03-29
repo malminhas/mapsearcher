@@ -1,8 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
-import { Location } from '@/types';
-import { isWithinRadius, calculateDistance } from '@/lib/geo-utils';
+import type { Location } from './types';
 
 // Use environment variable for Mapbox token if available
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN || '';
@@ -13,11 +12,12 @@ const GEOFENCE_LAYER_ID = 'geofence-layer';
 
 interface MapProps {
   locations: Location[];
-  selectedLocation?: Location | null;
+  selectedLocation: Location | null;
+  hoveredLocation: Location | null;
   radiusKm?: number;
 }
 
-const Map: React.FC<MapProps> = ({ locations, selectedLocation, radiusKm = DEFAULT_RADIUS_KM }) => {
+const Map: React.FC<MapProps> = ({ locations, selectedLocation, hoveredLocation, radiusKm = DEFAULT_RADIUS_KM }) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const markersRef = useRef<mapboxgl.Marker[]>([]);
@@ -99,19 +99,8 @@ const Map: React.FC<MapProps> = ({ locations, selectedLocation, radiusKm = DEFAU
 
   // Memoize the geofence check function
   const isWithinGeofence = React.useCallback((location: Location) => {
-    if (!selectedLocation) return false;
-    
-    // Calculate distance using the Haversine formula
-    const distance = calculateDistance(
-      location.latitude,
-      location.longitude,
-      selectedLocation.latitude,
-      selectedLocation.longitude
-    );
-    
-    // Compare with radius in kilometers
-    return distance <= radiusKm;
-  }, [selectedLocation, radiusKm]);
+    return location.within_geofence === true;
+  }, []);
 
   // Update markers when locations or radius changes
   useEffect(() => {
@@ -126,7 +115,7 @@ const Map: React.FC<MapProps> = ({ locations, selectedLocation, radiusKm = DEFAU
     
     locations.forEach(location => {
       // Check if location is within the geofence
-      const isWithin = selectedLocation ? isWithinGeofence(location) : false;
+      const isWithin = location.within_geofence === true;
       const isSelected = selectedLocation?.postcode === location.postcode;
       
       // Format street address
@@ -152,28 +141,44 @@ const Map: React.FC<MapProps> = ({ locations, selectedLocation, radiusKm = DEFAU
             ${location.town && location.county ? ' · ' : ''}
             ${location.county}
           </p>
+          ${location.distance !== null ? `
+            <p class="text-xs text-green-500 mt-1">
+              ${(location.distance / 1000).toFixed(1)}km away
+            </p>
+          ` : ''}
         </div>
       `);
 
-      const marker = new mapboxgl.Marker({
+      let marker = new mapboxgl.Marker({
         color: isSelected ? '#3b82f6' : isWithin ? '#22c55e' : '#6b7280',
         scale: isSelected ? 1 : 0.8,
       })
         .setLngLat([location.longitude, location.latitude]);
 
-      // Add hover events for non-selected markers
-      if (!isSelected) {
-        const markerElement = marker.getElement();
-        
-        markerElement.addEventListener('mouseenter', () => {
-          marker.setPopup(popup);
-          popup.addTo(map.current!);
-        });
-        
-        markerElement.addEventListener('mouseleave', () => {
-          popup.remove();
-        });
+      // Update marker color when location is hovered in the list
+      if (!isSelected && hoveredLocation && 
+          location.postcode === hoveredLocation.postcode && 
+          location.latitude === hoveredLocation.latitude && 
+          location.longitude === hoveredLocation.longitude) {
+        marker.remove();
+        marker = new mapboxgl.Marker({
+          color: '#3b82f6',
+          scale: 1
+        })
+          .setLngLat([location.longitude, location.latitude])
+          .addTo(map.current!);
       }
+
+      const markerElement = marker.getElement();
+      
+      markerElement.addEventListener('mouseenter', () => {
+        marker.setPopup(popup);
+        popup.addTo(map.current!);
+      });
+      
+      markerElement.addEventListener('mouseleave', () => {
+        popup.remove();
+      });
         
       marker.addTo(map.current!);
       markersRef.current.push(marker);
@@ -190,7 +195,7 @@ const Map: React.FC<MapProps> = ({ locations, selectedLocation, radiusKm = DEFAU
         essential: true
       });
     }
-  }, [locations, mapLoaded, selectedLocation, isWithinGeofence, radiusKm]);
+  }, [locations, mapLoaded, selectedLocation, hoveredLocation, radiusKm]);
 
   // Calculate zoom level based on radius and viewport
   const calculateZoomForRadius = useCallback(() => {
@@ -277,39 +282,6 @@ const Map: React.FC<MapProps> = ({ locations, selectedLocation, radiusKm = DEFAU
         essential: true,
         duration: 1200,
         padding: { top: 50, bottom: 50, left: 50, right: 50 }
-      });
-      
-      // Update marker colors and show popup for selected location only
-      markersRef.current.forEach(marker => {
-        const lngLat = marker.getLngLat();
-        
-        if (lngLat.lng === selectedLocation.longitude && lngLat.lat === selectedLocation.latitude) {
-          // Format street address (combining street1 and street2 if both exist)
-          const streetAddress = selectedLocation.street1 + (selectedLocation.street2 ? `, ${selectedLocation.street2}` : '');
-          
-          marker.setPopup(
-            new mapboxgl.Popup({ 
-              offset: 25, 
-              closeButton: true, 
-              maxWidth: '300px',
-              closeOnClick: false 
-            }).setHTML(`
-              <div class="p-2">
-                <h3 class="text-sm font-medium">${selectedLocation.postcode}</h3>
-                <p class="text-xs text-gray-500 mb-1">${streetAddress}</p>
-                <p class="text-xs text-gray-500">
-                  ${selectedLocation.district1 ? `${selectedLocation.district1}` : ''}
-                  ${selectedLocation.district1 && selectedLocation.district2 ? ' · ' : ''}
-                  ${selectedLocation.district2 ? `${selectedLocation.district2}` : ''}
-                  ${(selectedLocation.district1 || selectedLocation.district2) && selectedLocation.town ? ' · ' : ''}
-                  ${selectedLocation.town}
-                  ${selectedLocation.town && selectedLocation.county ? ' · ' : ''}
-                  ${selectedLocation.county}
-                </p>
-              </div>
-            `)
-          ).togglePopup();
-        }
       });
     } else {
       // Clear geofence when no location is selected

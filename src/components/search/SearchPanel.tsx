@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { SearchType } from '@/types';
 import { BookOpen, SlidersHorizontal } from 'lucide-react';
@@ -7,11 +6,11 @@ import { Slider } from '@/components/ui/slider';
 import SearchInput from './SearchInput';
 
 interface SearchPanelProps {
-  onSearch: (type: SearchType, value: string, limit?: number) => void;
-  loading: boolean;
+  onSearch: (type: SearchType, value: string, limit: number) => void;
+  loading?: boolean;
 }
 
-const SearchPanel: React.FC<SearchPanelProps> = ({ onSearch, loading }) => {
+const SearchPanel: React.FC<SearchPanelProps> = ({ onSearch, loading = false }) => {
   const [postcode, setPostcode] = useState('');
   const [town, setTown] = useState('');
   const [county, setCounty] = useState('');
@@ -49,9 +48,9 @@ const SearchPanel: React.FC<SearchPanelProps> = ({ onSearch, loading }) => {
   return (
     <div className="bg-card rounded-xl border border-border/50 shadow-elevated p-4">
       <SearchPanelHeader 
-        limit={limit} 
-        onSliderChange={handleSliderChange} 
-        onSliderCommit={handleSliderCommit} 
+        limit={limit}
+        onSliderChange={handleSliderChange}
+        onSliderCommit={handleSliderCommit}
       />
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -100,7 +99,7 @@ interface SearchPanelHeaderProps {
 
 const SearchPanelHeader: React.FC<SearchPanelHeaderProps> = ({ limit, onSliderChange, onSliderCommit }) => {
   return (
-    <div className="flex justify-between items-center mb-3">
+    <div className="flex justify-between items-center mb-4">
       <div className="flex items-center">
         <a 
           href="http://localhost:8000/redoc" 
@@ -116,14 +115,14 @@ const SearchPanelHeader: React.FC<SearchPanelHeaderProps> = ({ limit, onSliderCh
         <SlidersHorizontal size={14} className="text-muted-foreground" />
         <Slider 
           value={limit} 
-          min={1} 
+          min={100} 
           max={5000} 
-          step={10}
+          step={100}
           onValueChange={onSliderChange}
           onValueCommit={onSliderCommit}
           className="flex-1"
         />
-        <span className="text-xs text-muted-foreground whitespace-nowrap">{limit[0]} results</span>
+        <span className="text-sm text-muted-foreground whitespace-nowrap">{limit[0]} results</span>
       </div>
     </div>
   );

@@ -85,13 +85,21 @@ def get_database_info(db_name, csv_file=None):
     conn = sqlite3.connect(db_name)
     cursor = conn.cursor()
     
+    # Try to load SpatiaLite extension
+    try:
+        cursor.execute("SELECT load_extension('mod_spatialite')")
+        spatialite_enabled = True
+    except sqlite3.OperationalError:
+        spatialite_enabled = False
+    
     # Get table information
     cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
     tables = cursor.fetchall()
     
     info = {
         'database_size': get_file_size(db_name),
-        'tables': {}
+        'tables': {},
+        'spatialite_enabled': spatialite_enabled
     }
     
     for table in tables:
@@ -127,6 +135,15 @@ def get_database_info(db_name, csv_file=None):
         unique_locations = cursor.fetchone()[0]
         info['tables'][table_name]['unique_locations'] = unique_locations
         
+        # If SpatiaLite is enabled, check for spatial columns
+        if spatialite_enabled:
+            try:
+                cursor.execute(f"SELECT f_geometry_column FROM geometry_columns WHERE f_table_name = '{table_name}';")
+                spatial_columns = cursor.fetchall()
+                info['tables'][table_name]['spatial_columns'] = [col[0] for col in spatial_columns]
+            except sqlite3.Error:
+                info['tables'][table_name]['spatial_columns'] = []
+        
         # Check for unique identifiers
         info['tables'][table_name]['unique_identifiers'] = {}
         
@@ -136,26 +153,6 @@ def get_database_info(db_name, csv_file=None):
             cursor.execute(f"SELECT COUNT(DISTINCT {col_name}) FROM {table_name};")
             unique_count = cursor.fetchone()[0]
             info['tables'][table_name]['unique_identifiers'][col_name] = unique_count
-        
-        # Check common combinations for uniqueness
-        combinations = [
-            ('Postcode', 'Title'),
-            ('Postcode', 'Description'),
-            ('Postcode', 'Price'),
-            ('Postcode', 'County'),
-            ('Postcode', 'LATITUDE', 'LONGITUDE'),
-            ('Title', 'Description', 'Price'),
-            ('Title', 'Description', 'County'),
-            ('Title', 'Description', 'LATITUDE', 'LONGITUDE')
-        ]
-        
-        for combo in combinations:
-            if all(col in [c[1] for c in columns] for col in combo):
-                # Create a concatenated string of all columns for counting distinct combinations
-                concat_cols = " || '|' || ".join(f'"{col}"' for col in combo)
-                cursor.execute(f"SELECT COUNT(DISTINCT {concat_cols}) FROM {table_name};")
-                unique_count = cursor.fetchone()[0]
-                info['tables'][table_name]['unique_identifiers'][f"Combination: {', '.join(combo)}"] = unique_count
     
     conn.close()
     
@@ -319,9 +316,24 @@ def print_database_info(info):
             constraint_str = f" ({', '.join(constraints)})" if constraints else ""
             print(f"    - {col['name']}: {col['type']}{constraint_str}")
 
+def find_spatialite_extension():
+    """Find the SpatiaLite extension file on the system."""
+    possible_paths = [
+        '/usr/local/lib/mod_spatialite.dylib',  # Common macOS Intel path
+        '/opt/homebrew/lib/mod_spatialite.dylib',  # macOS Apple Silicon path
+        '/usr/lib/x86_64-linux-gnu/mod_spatialite.so',  # Linux path
+        '/usr/lib/mod_spatialite.so',  # Alternative Linux path
+        '/usr/local/lib/mod_spatialite.so'  # Alternative Unix path
+    ]
+    
+    for path in possible_paths:
+        if os.path.exists(path):
+            return path
+    return None
+
 def convert_csv_to_sqlite(csv_file, db_name='data/locations.db', table_name='location_data', verbose=False):
     """
-    Convert a CSV file to SQLite database using pandas.
+    Convert a CSV file to SQLite database using pandas, with spatial support.
     
     Args:
         csv_file (str): Path to the CSV file
@@ -341,14 +353,34 @@ def convert_csv_to_sqlite(csv_file, db_name='data/locations.db', table_name='loc
     total_rows = count_csv_rows(csv_file)
     print(f"Total rows in CSV: {total_rows:,}")
     
-    # Read the CSV file in chunks to handle large files
+    # Create SQLite connection and initialize SpatiaLite
+    conn = sqlite3.connect(db_name)
+    cursor = conn.cursor()
+    
+    # Find and load SpatiaLite extension
+    spatialite_path = find_spatialite_extension()
+    if spatialite_path:
+        try:
+            conn.enable_load_extension(True)
+            cursor.execute(f"SELECT load_extension('{spatialite_path}')")
+            print(f"Successfully loaded SpatiaLite extension from: {spatialite_path}")
+            spatialite_enabled = True
+            # Initialize spatial metadata
+            cursor.execute("SELECT InitSpatialMetaData(1)")
+            print("Initialized spatial metadata")
+        except sqlite3.Error as e:
+            print(f"Warning: Could not load SpatiaLite extension. Error: {e}")
+            print("Please ensure SpatiaLite is properly installed.")
+            spatialite_enabled = False
+    else:
+        print("Warning: Could not find SpatiaLite extension. Spatial features will be disabled.")
+        print("Please install SpatiaLite using your package manager (e.g., brew install spatialite-tools)")
+        spatialite_enabled = False
+    
+    # Process each chunk and write to database
     chunk_size = 100000  # Adjust this value based on your available memory
     chunks = pd.read_csv(csv_file, chunksize=chunk_size, low_memory=False)
     
-    # Create SQLite connection
-    conn = sqlite3.connect(db_name)
-    
-    # Process each chunk and write to database
     processed_rows = 0
     for i, chunk in enumerate(chunks):
         chunk_size = len(chunk)
@@ -368,6 +400,56 @@ def convert_csv_to_sqlite(csv_file, db_name='data/locations.db', table_name='loc
         if verbose:
             logging.info(f"Chunk {i+1} written to database")
     
+    # Create spatial column and indexes if SpatiaLite is enabled
+    if spatialite_enabled:
+        print("\nCreating spatial column and indexes...")
+        try:
+            # Add a spatial column for the point geometry
+            cursor.execute(f"""
+                SELECT AddGeometryColumn('{table_name}', 'location_point', 4326, 'POINT', 'XY');
+            """)
+            
+            # Update the spatial column with points from latitude and longitude
+            cursor.execute(f"""
+                UPDATE {table_name} 
+                SET location_point = MakePoint(Longitude, Latitude, 4326)
+                WHERE Latitude IS NOT NULL AND Longitude IS NOT NULL;
+            """)
+            
+            # Create a spatial index on the point column
+            cursor.execute(f"""
+                SELECT CreateSpatialIndex('{table_name}', 'location_point');
+            """)
+            
+            print("Spatial column and indexes created successfully!")
+        except sqlite3.Error as e:
+            print(f"Error creating spatial features: {e}")
+    
+    # Create regular indexes
+    print("\nCreating regular indexes...")
+    try:
+        # Create index on Postcode
+        print("  Creating index on Postcode...")
+        cursor.execute(f"DROP INDEX IF EXISTS idx_postcode;")
+        cursor.execute(f"CREATE INDEX idx_postcode ON {table_name}(Postcode);")
+        
+        # Create index on Town
+        print("  Creating index on Town...")
+        cursor.execute(f"DROP INDEX IF EXISTS idx_town;")
+        cursor.execute(f"CREATE INDEX idx_town ON {table_name}(Town);")
+        
+        # Create index on County
+        print("  Creating index on County...")
+        cursor.execute(f"DROP INDEX IF EXISTS idx_county;")
+        cursor.execute(f"CREATE INDEX idx_county ON {table_name}(County);")
+        
+        # Commit the changes
+        conn.commit()
+        print("Regular indexes created successfully!")
+    except sqlite3.Error as e:
+        print(f"Error creating regular indexes: {e}")
+        print("WARNING: Database will work but searches might be slower")
+    
     # Close the connection
     conn.close()
     
@@ -375,6 +457,11 @@ def convert_csv_to_sqlite(csv_file, db_name='data/locations.db', table_name='loc
     print(f"Final row count in database: {processed_rows:,}")
     if processed_rows != total_rows:
         print(f"⚠️  WARNING: Database row count ({processed_rows:,}) does not match CSV row count ({total_rows:,})")
+    
+    if spatialite_enabled:
+        print("\nSpatial features are enabled. You can now use spatial queries for distance calculations.")
+    else:
+        print("\nWarning: Spatial features are not available. Distance calculations will use fallback methods.")
 
 def open_file(filepath):
     """Open a file using the system's default application."""
@@ -496,6 +583,88 @@ def get_basic_database_info(db_name, csv_file=None):
         info['csv_rows'] = count_csv_rows(csv_file)
     
     return info
+
+def calculate_distances(db_name, center_lat, center_lon, radius_meters, table_name='location_data'):
+    """
+    Calculate distances from a center point to all locations within a radius.
+    Uses SpatiaLite's spatial functions if available, otherwise falls back to a simpler calculation.
+    
+    Args:
+        db_name (str): Path to the SQLite database
+        center_lat (float): Latitude of the center point
+        center_lon (float): Longitude of the center point
+        radius_meters (float): Radius in meters
+        table_name (str): Name of the table containing location data
+    
+    Returns:
+        list: List of tuples containing (id, distance) for locations within the radius
+    """
+    conn = sqlite3.connect(db_name)
+    cursor = conn.cursor()
+    
+    # Try to load SpatiaLite extension
+    try:
+        cursor.execute("SELECT load_extension('mod_spatialite')")
+        spatialite_enabled = True
+    except sqlite3.OperationalError:
+        spatialite_enabled = False
+    
+    if spatialite_enabled:
+        # Use SpatiaLite's spatial functions for accurate geodesic distance calculation
+        query = f"""
+        WITH center_point AS (
+            SELECT MakePoint(?, ?, 4326) as point
+        )
+        SELECT 
+            l.Postcode,
+            ST_Distance(
+                Transform(l.location_point, 900913),
+                Transform((SELECT point FROM center_point), 900913)
+            ) as distance
+        FROM {table_name} l
+        WHERE ST_Distance(
+            Transform(l.location_point, 900913),
+            Transform((SELECT point FROM center_point), 900913)
+        ) <= ?
+        ORDER BY distance;
+        """
+        cursor.execute(query, (center_lon, center_lat, radius_meters))
+    else:
+        # Fallback to simpler calculation using the Haversine formula
+        # Note: This is less accurate but works without SpatiaLite
+        query = f"""
+        WITH RECURSIVE 
+        constants AS (
+            SELECT 
+                6371000 as earth_radius_meters,  -- Earth's radius in meters
+                ? as center_lat,
+                ? as center_lon,
+                ? as search_radius_meters
+        ),
+        haversine AS (
+            SELECT 
+                Postcode,
+                earth_radius_meters * 2 * ASIN(
+                    SQRT(
+                        POWER(SIN((RADIANS(Latitude) - RADIANS(center_lat)) / 2), 2) +
+                        COS(RADIANS(center_lat)) * COS(RADIANS(Latitude)) *
+                        POWER(SIN((RADIANS(Longitude) - RADIANS(center_lon)) / 2), 2)
+                    )
+                ) as distance
+            FROM {table_name}, constants
+            WHERE Latitude IS NOT NULL AND Longitude IS NOT NULL
+        )
+        SELECT Postcode, distance
+        FROM haversine
+        WHERE distance <= search_radius_meters
+        ORDER BY distance;
+        """
+        cursor.execute(query, (center_lat, center_lon, radius_meters))
+    
+    results = cursor.fetchall()
+    conn.close()
+    
+    return [(row[0], row[1]) for row in results]
 
 def main():
     """Main entry point."""

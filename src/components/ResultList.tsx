@@ -1,8 +1,7 @@
 import React, { useMemo, useEffect, useRef } from 'react';
-import { Location } from '@/types';
+import type { Location } from './types';
 import LocationCard from './LocationCard';
 import { cn } from '@/lib/utils';
-import { isWithinRadius } from '@/lib/geo-utils';
 
 interface ResultListProps {
   locations: Location[];
@@ -10,6 +9,7 @@ interface ResultListProps {
   error: string;
   selectedLocation: Location | null;
   onSelectLocation: (location: Location) => void;
+  onHoverLocation: (location: Location | null) => void;
   radiusKm?: number;
 }
 
@@ -19,6 +19,7 @@ const ResultList: React.FC<ResultListProps> = ({
   error,
   selectedLocation,
   onSelectLocation,
+  onHoverLocation,
   radiusKm = 15
 }) => {
   const listContainerRef = useRef<HTMLDivElement>(null);
@@ -32,96 +33,114 @@ const ResultList: React.FC<ResultListProps> = ({
 
   // Memoize the sorted locations
   const sortedLocations = useMemo(() => {
-    if (!selectedLocation) return locations;
-
-    // Create a map of locations to their geofence status
-    const locationStatus = new Map(
-      locations.map(location => [
-        location,
-        isWithinRadius(location, selectedLocation, radiusKm)
-      ])
+    // Always sort alphabetically first
+    const alphabeticallySorted = [...locations].sort((a, b) => 
+      a.postcode.localeCompare(b.postcode)
     );
 
-    // Sort locations: selected first, then within geofence, then by postcode
-    return [...locations].sort((a, b) => {
+    if (!selectedLocation) return alphabeticallySorted;
+
+    // When there's a selected location, sort into three groups:
+    // 1. Selected location
+    // 2. Locations within geofence (alphabetically)
+    // 3. Locations outside geofence (alphabetically)
+    return alphabeticallySorted.sort((a, b) => {
       // Selected location always comes first
-      if (a.postcode === selectedLocation.postcode) return -1;
-      if (b.postcode === selectedLocation.postcode) return 1;
+      const isASelected = a.postcode === selectedLocation.postcode && 
+                         a.latitude === selectedLocation.latitude && 
+                         a.longitude === selectedLocation.longitude;
+      const isBSelected = b.postcode === selectedLocation.postcode && 
+                         b.latitude === selectedLocation.latitude && 
+                         b.longitude === selectedLocation.longitude;
+      
+      if (isASelected) return -1;
+      if (isBSelected) return 1;
 
       // Then sort by within geofence status
-      const aWithin = locationStatus.get(a)!;
-      const bWithin = locationStatus.get(b)!;
-      
+      const aWithin = a.within_geofence === true;
+      const bWithin = b.within_geofence === true;
       if (aWithin !== bWithin) {
         return aWithin ? -1 : 1;
       }
-      
-      // Finally sort by postcode
-      return a.postcode.localeCompare(b.postcode);
+
+      // Both locations are in the same group (either both within or both outside geofence)
+      // They're already sorted alphabetically from the initial sort
+      return 0;
     });
-  }, [locations, selectedLocation, radiusKm]);
+  }, [locations, selectedLocation]);
 
   // Count locations within geofence
   const locationsWithinGeofence = useMemo(() => {
     if (!selectedLocation) return 0;
-    return locations.filter(location => 
-      isWithinRadius(location, selectedLocation, radiusKm)
-    ).length;
-  }, [locations, selectedLocation, radiusKm]);
+    return locations.filter(location => location.within_geofence === true).length;
+  }, [locations, selectedLocation]);
 
   return (
-    <div className="flex-1 h-full overflow-hidden flex flex-col bg-card rounded-xl border border-border/50 shadow-elevated">
-      <div className="p-3 border-b border-border/50 flex items-center justify-between">
-        <h2 className="text-lg font-medium text-foreground">Search Results</h2>
-        <div className="text-sm text-muted-foreground">
-          {locations.length > 0 && (
-            <>
-              {locationsWithinGeofence} within {radiusKm}km
-              {locationsWithinGeofence !== locations.length && ` of ${locations.length} total`}
-            </>
-          )}
-        </div>
-      </div>
-      
-      <div ref={listContainerRef} className="flex-1 overflow-y-auto p-2 space-y-1.5">
-        {error && (
-          <div className="rounded-xl bg-destructive/10 p-3 text-sm text-destructive animate-fade-in">
-            {error}
-          </div>
+    <div className="h-full flex flex-col">
+      <div className="p-4 border-b">
+        <h2 className="text-lg font-medium">Search Results</h2>
+        {selectedLocation && locations.length > 0 && (
+          <p className="text-sm text-muted-foreground mt-1">
+            {locationsWithinGeofence} locations found within {radiusKm}km of {selectedLocation.postcode}
+          </p>
         )}
+        {!selectedLocation && locations.length > 0 && (
+          <p className="text-sm text-muted-foreground mt-1">
+            {locations.length} locations found
+          </p>
+        )}
+      </div>
 
+      <div ref={listContainerRef} className="flex-1 overflow-y-auto">
         {loading ? (
-          <div className="flex items-center justify-center h-32 animate-fade-in">
-            <div className="flex space-x-2">
-              <div className="w-3 h-3 rounded-full bg-primary/40 loading-dot"></div>
-              <div className="w-3 h-3 rounded-full bg-primary/40 loading-dot"></div>
-              <div className="w-3 h-3 rounded-full bg-primary/40 loading-dot"></div>
+          <div className="p-4">
+            <div className="animate-pulse space-y-4">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="h-24 bg-muted rounded-lg" />
+              ))}
             </div>
           </div>
+        ) : error ? (
+          <div className="p-4">
+            <div className="text-destructive text-center">{error}</div>
+          </div>
+        ) : locations.length === 0 ? (
+          <div className="h-full flex flex-col items-center justify-center p-4 text-center">
+            <p className="text-muted-foreground">No results found</p>
+            <p className="text-sm text-muted-foreground/70 mt-1">Try searching for a location</p>
+          </div>
         ) : (
-          <>
-            {sortedLocations.length > 0 ? (
-              <div className={cn("space-y-1.5", loading ? "opacity-50" : "animate-fade-in")}>
-                {sortedLocations.map((location, index) => (
+          <div className="relative p-2">
+            <div 
+              className="relative"
+              style={{ 
+                height: `${sortedLocations.length * (100 + 4)}px`
+              }}
+            >
+              {sortedLocations.map((location, index) => (
+                <div
+                  key={`${location.postcode}-${location.latitude}-${location.longitude}-${location.street1}-${index}`}
+                  className="transition-all duration-300 ease-in-out absolute left-0 right-0"
+                  style={{
+                    transform: `translateY(${index * (100 + 4)}px)`
+                  }}
+                  onMouseEnter={() => onHoverLocation(location)}
+                  onMouseLeave={() => onHoverLocation(null)}
+                >
                   <LocationCard
-                    key={`${location.postcode}-${index}`}
                     location={location}
-                    isSelected={selectedLocation?.postcode === location.postcode}
+                    isSelected={selectedLocation && 
+                      location.postcode === selectedLocation.postcode &&
+                      location.latitude === selectedLocation.latitude &&
+                      location.longitude === selectedLocation.longitude}
                     onClick={() => onSelectLocation(location)}
                     selectedLocation={selectedLocation}
                     radiusKm={radiusKm}
                   />
-                ))}
-              </div>
-            ) : (
-              !loading && !error && (
-                <div className="flex flex-col items-center justify-center h-32 text-muted-foreground animate-fade-in">
-                  <p className="text-center">No results found</p>
-                  <p className="text-sm text-muted-foreground/70 mt-1">Try searching for a location</p>
                 </div>
-              )
-            )}
-          </>
+              ))}
+            </div>
+          </div>
         )}
       </div>
     </div>

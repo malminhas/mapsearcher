@@ -1,155 +1,188 @@
-# Welcome to mapsearcher
+# Location Database Browser
 
-A web application for exploring UK postcodes, districts and towns.
+A modern web application for exploring UK postcodes, districts and towns with spatial search capabilities.
 
-## Project info
+## Features
 
-**URL**: https://lovable.dev/projects/4cbbd2cc-b23c-4abd-8ff8-3527df150ad4
+- **Spatial Search**: Search locations within a specified radius of any point
+- **Multi-mode Search**: Search by postcode, town, or county
+- **Interactive Map**: Visual representation of search results with Mapbox integration
+- **Geofencing**: Display and filter results within a specified radius
+- **Mock Data Support**: Fallback to mock data when backend is unavailable
+- **Modern UI**: Built with React, TypeScript, and shadcn/ui
 
-## Running this project
+## Architecture
 
-**Source**
+### Frontend (TypeScript + React)
 
-`git clone` the repo:
-```
-$ git clone git@github.com:malminhas/mapsearcher.git
-```
+- **UI Components**: Built with shadcn/ui and Tailwind CSS
+- **Map Integration**: Uses Mapbox GL JS for interactive mapping
+- **State Management**: React hooks and context for local state
+- **API Layer**: Typed API client with error handling and mock data support
+- **Routing**: React Router for navigation
+- **Styling**: Tailwind CSS with dark mode support
 
-**Backend**
+### Backend (Python + FastAPI)
 
-You will first need to build your `sqlite3` `locations.db` from a csv file which you need to have locally which contains information from the [UK Postcode Address File (PAF)](https://www.poweredbypaf.com/) data.  Specifically in this case information about UK street, district, postcode, town, county.  You have to secure that file under licence from a company such as [hopewiser](https://www.hopewiser.com/address-validation/).
-Once you have the csv file, you can build a database as follows:
-```
-$ cd backend
-$ cd python csv_to_sqlite.py -c locations.csv
-...
-Conversion complete! Database saved as: locations.db
-Final row count in database: 1,999,624
-```
+- **API Framework**: FastAPI with automatic OpenAPI documentation
+- **Database**: SQLite with SpatiaLite extension for spatial queries
+- **Performance Optimizations**:
+  - LRU caching with configurable size and TTL
+  - Connection pooling
+  - Indexed spatial queries
+  - Parameterized SQL for security
+- **Security Features**:
+  - CORS protection
+  - Input validation
+  - Rate limiting support
+  - Secure error handling
 
-Now fire up the backend over that database:
-```
-$ python location_api.py
-```
+### Spatial Features
 
-Full documentation for the backend API is available at [localhost:8000/redoc](http://localhost:8000/redoc)
+The application uses SpatiaLite for efficient spatial queries:
 
-<img width="1435" alt="image" src="https://github.com/user-attachments/assets/2bad47c8-d57e-4fb9-a333-94127ad82378" />
+1. **Spatial Indexing**:
+   - R*Tree spatial index on latitude/longitude columns
+   - Optimized for range and radius queries
+   - Supports efficient geofencing operations
 
-**Frontend**
+2. **Distance Calculations**:
+   - Uses geodesic distance calculations
+   - Supports radius-based searches
+   - Results sorted by distance from center point
 
-To run the frontend which was entirely built with lovable.dev, make sure you have everything you need to run Vite, TypeScript, React, shadcn-ui and Tailwind locally:
-```
-$ cd ..
-$ npm i
-$ npm run dev
+3. **Geofencing**:
+   - Dynamic radius adjustment (100m to 50km)
+   - Visual representation on map
+   - Real-time filtering of results
 
-> vite_react_shadcn_ts@0.0.0 dev
-> vite
+## API Endpoints
 
-Re-optimizing dependencies because lockfile has changed
+### Location Search
 
-  VITE v5.4.10  ready in 594 ms
+- `GET /search/postcode/{postcode}`
+  - Search by full or partial postcode
+  - Supports spatial parameters
 
-  ➜  Local:   http://localhost:8010/
-  ➜  Network: http://192.168.0.190:8010/
-  ➜  press h + enter to show help
-```
+- `GET /search/town/{town}`
+  - Search by town name
+  - Includes district matching
+  - Supports spatial parameters
 
-Now go to http://localhost:8010/ in the browser:
+- `GET /search/county/{county}`
+  - Search by county name
+  - Supports spatial parameters
 
-![image](https://github.com/user-attachments/assets/57b52ae7-41c5-412d-a781-0d0788d96c89)
+### Spatial Search
 
-**Security**
+- `GET /search/spatial`
+  - Search locations within radius
+  - Parameters:
+    - `center_lat`: Center latitude (-90 to 90)
+    - `center_lon`: Center longitude (-180 to 180)
+    - `radius_meters`: Search radius (0 to 50000)
+    - `limit`: Maximum results (1-5000)
 
-Security checks conducted using Cursor code agent:
+All search endpoints support the following query parameters:
+- `limit`: Maximum number of results to return
+- `center_lat`: Center latitude for spatial search
+- `center_lon`: Center longitude for spatial search
+- `radius_meters`: Search radius in meters
 
-<img width="358" alt="image" src="https://github.com/user-attachments/assets/686e7b16-540e-4dc6-a3f1-ab90f24ff87c" />
+## Project Setup
 
-**Deployment**
+### Prerequisites
 
-Docker support is provided through Dockerfiles marshalled through terraform as follows.  Before you do this, make sure you are not running either the frontend or backend locally:
+- Node.js & npm
+- Python 3.11+
+- SQLite with SpatiaLite extension
+- UK Postcode Address File (PAF) data
 
-```
-$ cd terraform
-$ terraform init
-$ terraform apply
-```
+### Backend Setup
 
-Once built, you should see the containers running locally in Docker Desktop: 
-
-<img width="1096" alt="image" src="https://github.com/user-attachments/assets/344dfd8b-0fee-4830-8edd-e61ebec02b4d" />
-
-And you should be able to access the service at [http://localhost:8010/](http://localhost:8010/).
-
-
-## How can I edit this code?
-
-There are several ways of editing your application.
-
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/4cbbd2cc-b23c-4abd-8ff8-3527df150ad4) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-$ git clone git@github.com:malminhas/mapsearcher.git
-
-# Step 2: Navigate to the project directory.
-$ cd mapsearcher
-
-# Step 3: Install the necessary dependencies.
-$ npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-$ npm run dev
+1. Create the database:
+```bash
+cd backend
+python csv_to_sqlite.py -c locations.csv
 ```
 
-**Edit a file directly in GitHub**
+2. Start the backend:
+```bash
+python location_api.py
+```
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+The API documentation will be available at:
+- Swagger UI: http://localhost:8000/docs
+- ReDoc: http://localhost:8000/redoc
 
-**Use GitHub Codespaces**
+### Frontend Setup
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+1. Install dependencies:
+```bash
+npm install
+```
 
-## What technologies are used for this project?
+2. Create a `.env` file with your Mapbox token:
+```
+VITE_MAPBOX_TOKEN=your_mapbox_token_here
+```
 
-This project is built with:
+3. Start the development server:
+```bash
+npm run dev
+```
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+## Docker Deployment
 
-The backend is built with:
+The project includes Docker and Terraform configurations for containerized deployment:
 
-- FastAPI
-- uvicorn
-- sqlite3
+```bash
+cd terraform
+terraform init
+terraform apply
+```
 
+This will:
+1. Build and run the backend container
+2. Build and run the frontend container
+3. Create a Docker network for communication
+4. Mount the database volume
+5. Configure environment variables
 
-## How can I deploy this project?
+## Security
 
-Simply open [Lovable](https://lovable.dev/projects/4cbbd2cc-b23c-4abd-8ff8-3527df150ad4) and click on Share -> Publish.
+- All inputs are validated and sanitized
+- SQL injection protection through parameterized queries
+- CORS protection with configurable origins
+- Rate limiting support
+- Secure error handling and logging
+- Content Security Policy headers
+- XSS protection headers
 
-## I want to use a custom domain - is that possible?
+## Performance
 
-We don't support custom domains (yet). If you want to deploy your project under your own domain then we recommend using Netlify. Visit our docs for more details: [Custom domains](https://docs.lovable.dev/tips-tricks/custom-domain/)
+The application is optimized for performance:
+
+- Frontend:
+  - Code splitting and lazy loading
+  - Optimized asset delivery
+  - Efficient state management
+  - Debounced search inputs
+
+- Backend:
+  - LRU caching (configurable size and TTL)
+  - Connection pooling
+  - Indexed queries
+  - Optimized spatial calculations
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Commit your changes
+4. Push to the branch
+5. Create a Pull Request
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
