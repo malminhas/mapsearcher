@@ -1,6 +1,6 @@
-export type SearchType = 'postcode' | 'town' | 'county';
+export type SearchType = 'postcode' | 'town' | 'county' | 'search';
 
-export interface Location {
+export interface BaseLocation {
   // Required fields
   postcode: string;
   latitude: number;
@@ -11,4 +11,11 @@ export interface Location {
   street2: string;
   district1: string;
   district2: string;
-} 
+  
+  // Optional fields
+  within_geofence?: boolean;
+  distance?: number;
+  isMock?: boolean;
+}
+
+export type Location = BaseLocation; 

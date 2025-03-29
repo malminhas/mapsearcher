@@ -9,52 +9,46 @@ import RadiusSlider from '@/components/RadiusSlider';
 import { useToast } from '@/hooks/use-toast';
 
 const Index = () => {
-  const [locations, setLocations] = useState<Location[]>([]);
-  const [selectedLocation, setSelectedLocation] = useState<Location | null>(null);
+  const [results, setResults] = useState<Location[]>([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [selectedLocation, setSelectedLocation] = useState<Location | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [radiusKm, setRadiusKm] = useState(15);
   const [hoveredLocation, setHoveredLocation] = useState<Location | null>(null);
   const { toast } = useToast();
 
-  const handleSearch = async (type: SearchType, value: string, limit: number) => {
-    if (!value.trim()) return;
-    
-    setLoading(true);
-    setError('');
-    setLocations([]);
+  const handleReset = () => {
+    setResults([]);
     setSelectedLocation(null);
+    setError(null);
+  };
 
+  const handleSearch = async (type: SearchType, value: string, limit: number) => {
+    setLoading(true);
+    setError(null);
+    
+    // Always reset state for a new search
+    setSelectedLocation(null);
+    setResults([]);
+    
     try {
-      // Prepare search parameters
-      const searchParams: any = { limit };
-
-      // If we have a selected location, add spatial parameters
-      if (selectedLocation) {
-        searchParams.center_lat = selectedLocation.latitude;
-        searchParams.center_lon = selectedLocation.longitude;
-        searchParams.radius_meters = radiusKm * 1000; // Convert km to meters
-      }
-
-      const results = await searchLocations(type, value, searchParams);
-      setLocations(results);
-
-      // Check if we're using mock data
-      if (results.length > 0 && results[0].isMock) {
+      // For a new search, don't include any spatial parameters
+      const searchParams = { limit };
+      
+      const searchResults = await searchLocations(type, value, searchParams);
+      setResults(searchResults);
+      
+      // If we got mock results, show a notification
+      if (searchResults.length > 0 && searchResults[0].isMock) {
         toast({
-          title: 'Using Mock Data',
-          description: 'The backend server is not available. Showing mock results instead.',
-          variant: 'default'
+          title: "Using mock data",
+          description: "The backend server is unavailable. Showing mock results instead.",
+          variant: "default"
         });
       }
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Search failed';
-      setError(errorMessage);
-      toast({
-        title: 'Search Failed',
-        description: errorMessage,
-        variant: 'destructive'
-      });
+      setError(err instanceof Error ? err.message : 'An error occurred during search');
+      setResults([]);
     } finally {
       setLoading(false);
     }
@@ -64,7 +58,7 @@ const Index = () => {
     setSelectedLocation(location);
     
     // Update the within_geofence property for all locations based on the new selection
-    const updatedLocations = locations.map(loc => ({
+    const updatedLocations = results.map(loc => ({
       ...loc,
       within_geofence: calculateIsWithinGeofence(
         loc.latitude,
@@ -81,7 +75,60 @@ const Index = () => {
       )
     }));
     
-    setLocations(updatedLocations);
+    setResults(updatedLocations);
+  };
+
+  // Separate function for spatial search after selecting a location
+  const handleSpatialSearch = async () => {
+    if (!selectedLocation) return;
+    
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const searchParams = {
+        limit: 1000, // Use max limit for spatial searches
+        center_lat: selectedLocation.latitude,
+        center_lon: selectedLocation.longitude,
+        radius_meters: radiusKm * 1000
+      };
+      
+      // Use the selected location's most specific field for the search
+      const searchValue = selectedLocation.postcode || selectedLocation.town || selectedLocation.county;
+      const searchType = selectedLocation.postcode ? 'postcode' : 
+                        selectedLocation.town ? 'town' : 'county';
+      
+      const searchResults = await searchLocations(searchType, searchValue, searchParams);
+      
+      // Merge new results with existing ones, removing duplicates
+      const mergedResults = [...results];
+      searchResults.forEach(newLoc => {
+        if (!mergedResults.some(existingLoc => existingLoc.postcode === newLoc.postcode)) {
+          mergedResults.push({
+            ...newLoc,
+            within_geofence: calculateIsWithinGeofence(
+              newLoc.latitude,
+              newLoc.longitude,
+              selectedLocation.latitude,
+              selectedLocation.longitude,
+              radiusKm
+            ),
+            distance: calculateDistance(
+              newLoc.latitude,
+              newLoc.longitude,
+              selectedLocation.latitude,
+              selectedLocation.longitude
+            )
+          });
+        }
+      });
+      
+      setResults(mergedResults);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred during spatial search');
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Helper function to calculate if a point is within the geofence
@@ -122,7 +169,7 @@ const Index = () => {
     
     // If we have a selected location, update the geofence calculations
     if (selectedLocation) {
-      const updatedLocations = locations.map(loc => ({
+      const updatedLocations = results.map(loc => ({
         ...loc,
         within_geofence: calculateIsWithinGeofence(
           loc.latitude,
@@ -139,7 +186,7 @@ const Index = () => {
         )
       }));
       
-      setLocations(updatedLocations);
+      setResults(updatedLocations);
     }
   };
 
@@ -153,7 +200,11 @@ const Index = () => {
         
         <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-6 min-h-0">
           <div className="flex flex-col space-y-4 min-h-0">
-            <SearchPanel onSearch={handleSearch} loading={loading} />
+            <SearchPanel 
+              onSearch={handleSearch} 
+              loading={loading}
+              onReset={handleReset}
+            />
             {selectedLocation && (
               <RadiusSlider
                 value={radiusKm}
@@ -162,7 +213,7 @@ const Index = () => {
             )}
             <div className="flex-1 min-h-0 bg-card rounded-xl border border-border/50 shadow-elevated overflow-hidden">
               <Map 
-                locations={locations} 
+                locations={results} 
                 selectedLocation={selectedLocation}
                 hoveredLocation={hoveredLocation}
                 radiusKm={radiusKm}
@@ -172,7 +223,7 @@ const Index = () => {
           
           <div className="flex-1 min-h-0 bg-card rounded-xl border border-border/50 shadow-elevated overflow-hidden">
             <ResultList 
-              locations={locations} 
+              locations={results} 
               loading={loading} 
               error={error}
               selectedLocation={selectedLocation}

@@ -8,26 +8,77 @@ import SearchInput from './SearchInput';
 interface SearchPanelProps {
   onSearch: (type: SearchType, value: string, limit: number) => void;
   loading?: boolean;
+  onReset?: () => void;
 }
 
-const SearchPanel: React.FC<SearchPanelProps> = ({ onSearch, loading = false }) => {
-  const [postcode, setPostcode] = useState('');
-  const [town, setTown] = useState('');
-  const [county, setCounty] = useState('');
-  const [activeInput, setActiveInput] = useState<SearchType | null>(null);
+const SearchPanel: React.FC<SearchPanelProps> = ({ onSearch, loading = false, onReset }) => {
+  const [searchValue, setSearchValue] = useState('');
   const [limit, setLimit] = useState([1000]); // Default to 1000 results
+  const [activeType, setActiveType] = useState<SearchType | null>(null);
 
-  const handleInputFocus = (type: SearchType) => {
-    setActiveInput(type);
+  const detectSearchType = (value: string): SearchType => {
+    // UK postcode regex patterns
+    const fullPostcodePattern = /^[A-Z]{1,2}[0-9][A-Z0-9]? ?[0-9][A-Z]{2}$/i;
+    const partialPostcodePattern = /^[A-Z]{1,2}[0-9][A-Z0-9]?( ?[0-9])?$/i;
+    
+    // Clean and uppercase the input
+    const cleanValue = value.trim().toUpperCase();
+    
+    // Check if it matches a full postcode pattern
+    if (fullPostcodePattern.test(cleanValue)) {
+      return 'postcode';
+    }
+    
+    // Check if it matches a partial postcode pattern
+    if (partialPostcodePattern.test(cleanValue)) {
+      return 'postcode';
+    }
+    
+    // If it's a known county name (common UK counties)
+    const commonCounties = [
+      'BERKSHIRE', 'BUCKINGHAMSHIRE', 'DERBYSHIRE', 'DEVON', 'DORSET',
+      'ESSEX', 'GLOUCESTERSHIRE', 'HAMPSHIRE', 'KENT', 'LANCASHIRE',
+      'LEICESTERSHIRE', 'LINCOLNSHIRE', 'NORFOLK', 'NORTHAMPTONSHIRE',
+      'NOTTINGHAMSHIRE', 'OXFORDSHIRE', 'SOMERSET', 'SUFFOLK', 'SURREY',
+      'SUSSEX', 'WARWICKSHIRE', 'WILTSHIRE', 'WORCESTERSHIRE', 'YORKSHIRE',
+      'LONDON', 'GREATER LONDON', 'WEST MIDLANDS', 'GREATER MANCHESTER',
+      'MERSEYSIDE', 'SOUTH YORKSHIRE', 'WEST YORKSHIRE', 'TYNE AND WEAR'
+    ];
+    
+    if (commonCounties.includes(cleanValue)) {
+      return 'county';
+    }
+    
+    // Default to town search only if it contains valid town characters
+    const townPattern = /^[A-Za-z\s\-'\.]+$/;
+    if (townPattern.test(cleanValue)) {
+      return 'town';
+    }
+    
+    // If input contains numbers or special characters, treat as postcode
+    return 'postcode';
   };
 
-  const handleInputBlur = () => {
-    setActiveInput(null);
+  const handleSearch = async () => {
+    if (!searchValue.trim() || loading) return;
+    
+    // Reset any existing search state first
+    if (onReset) {
+      onReset();
+    }
+    
+    const searchType = detectSearchType(searchValue);
+    setActiveType(searchType);
+    onSearch(searchType, searchValue, limit[0]);
   };
 
-  const handleSearch = (type: SearchType, value: string) => {
-    if (!value.trim() || loading) return;
-    onSearch(type, value, limit[0]);
+  const handleInputChange = (value: string) => {
+    setSearchValue(value);
+    if (value.trim()) {
+      setActiveType(detectSearchType(value));
+    } else {
+      setActiveType(null);
+    }
   };
 
   const handleSliderChange = (newLimit: number[]) => {
@@ -35,14 +86,15 @@ const SearchPanel: React.FC<SearchPanelProps> = ({ onSearch, loading = false }) 
   };
 
   const handleSliderCommit = () => {
-    if (activeInput && (
-      (activeInput === 'postcode' && postcode.trim()) || 
-      (activeInput === 'town' && town.trim()) || 
-      (activeInput === 'county' && county.trim())
-    )) {
-      const value = activeInput === 'postcode' ? postcode : activeInput === 'town' ? town : county;
-      onSearch(activeInput, value, limit[0]);
+    if (searchValue.trim()) {
+      handleSearch();
     }
+  };
+
+  const getSearchTypeLabel = () => {
+    if (!searchValue.trim()) return 'Search Location';
+    if (!activeType) return 'Search Location';
+    return `Search ${activeType.charAt(0).toUpperCase() + activeType.slice(1)}`;
   };
 
   return (
@@ -53,38 +105,14 @@ const SearchPanel: React.FC<SearchPanelProps> = ({ onSearch, loading = false }) 
         onSliderCommit={handleSliderCommit}
       />
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="mt-4">
         <SearchInput
-          type="postcode"
-          value={postcode}
-          onChange={setPostcode}
+          type="search"
+          value={searchValue}
+          onChange={handleInputChange}
           onSearch={handleSearch}
-          onFocus={handleInputFocus}
-          onBlur={handleInputBlur}
-          activeInput={activeInput}
           loading={loading}
-        />
-        
-        <SearchInput
-          type="town"
-          value={town}
-          onChange={setTown}
-          onSearch={handleSearch}
-          onFocus={handleInputFocus}
-          onBlur={handleInputBlur}
-          activeInput={activeInput}
-          loading={loading}
-        />
-        
-        <SearchInput
-          type="county"
-          value={county}
-          onChange={setCounty}
-          onSearch={handleSearch}
-          onFocus={handleInputFocus}
-          onBlur={handleInputBlur}
-          activeInput={activeInput}
-          loading={loading}
+          label={getSearchTypeLabel()}
         />
       </div>
     </div>
@@ -99,7 +127,7 @@ interface SearchPanelHeaderProps {
 
 const SearchPanelHeader: React.FC<SearchPanelHeaderProps> = ({ limit, onSliderChange, onSliderCommit }) => {
   return (
-    <div className="flex justify-between items-center mb-4">
+    <div className="flex justify-between items-center">
       <div className="flex items-center">
         <a 
           href="http://localhost:8000/redoc" 

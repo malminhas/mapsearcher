@@ -36,7 +36,8 @@ const Map: React.FC<MapProps> = ({ locations, selectedLocation, hoveredLocation,
       
       map.current = new mapboxgl.Map({
         container: mapContainer.current,
-        style: 'mapbox://styles/mapbox/light-v10',
+        // style: 'mapbox://styles/mapbox/lighht-v10', // light-v10
+        style: 'mapbox://styles/mapbox/streets-v12',
         center: [-1.1437, 52.6376], // Center of UK
         zoom: 5,
         pitch: 0,
@@ -317,46 +318,44 @@ const Map: React.FC<MapProps> = ({ locations, selectedLocation, hoveredLocation,
   }, []);
 
   return (
-    <>
-      <div ref={mapContainer} className="w-full h-full rounded-xl overflow-hidden shadow-elevated relative">
-        {showError && (
-          <div className="absolute inset-0 flex items-center justify-center bg-secondary/50">
-            <div className="bg-background p-6 rounded-lg shadow-lg max-w-md">
-              <h3 className="text-lg font-medium mb-2">Map Configuration Error</h3>
-              <p className="text-sm text-muted-foreground mb-4">
-                Unable to load the map. Please make sure the Mapbox API key is properly configured in your environment variables.
-                Contact your administrator for assistance.
-              </p>
-            </div>
+    <div ref={mapContainer} className="w-full h-full rounded-xl overflow-hidden shadow-elevated relative">
+      {showError && (
+        <div className="absolute inset-0 flex items-center justify-center bg-secondary/50">
+          <div className="bg-background p-6 rounded-lg shadow-lg max-w-md">
+            <h3 className="text-lg font-medium mb-2">Map Configuration Error</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              Unable to load the map. Please make sure the Mapbox API key is properly configured in your environment variables.
+              Contact your administrator for assistance.
+            </p>
           </div>
-        )}
-        {!apiKey && (
-          <div className="absolute inset-0 flex items-center justify-center bg-secondary/50">
-            <div className="bg-background p-6 rounded-lg shadow-lg max-w-md">
-              <h3 className="text-lg font-medium mb-2">Mapbox API Key Required</h3>
-              <p className="text-sm text-muted-foreground mb-4">
-                Please enter your Mapbox API key to display the map. You can get one by signing up at <a href="https://mapbox.com" target="_blank" rel="noreferrer" className="text-primary underline">mapbox.com</a>.
-              </p>
-              <form onSubmit={handleApiKeySubmit}>
-                <input
-                  type="text"
-                  value={apiKeyInput}
-                  onChange={(e) => setApiKeyInput(e.target.value)}
-                  placeholder="Enter your Mapbox API key"
-                  className="w-full px-3 py-2 border border-input rounded-md mb-3"
-                />
-                <button 
-                  type="submit"
-                  className="bg-primary text-primary-foreground px-4 py-2 rounded-md w-full"
-                >
-                  Save and Load Map
-                </button>
-              </form>
-            </div>
+        </div>
+      )}
+      {!apiKey && (
+        <div className="absolute inset-0 flex items-center justify-center bg-secondary/50">
+          <div className="bg-background p-6 rounded-lg shadow-lg max-w-md">
+            <h3 className="text-lg font-medium mb-2">Mapbox API Key Required</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              Please enter your Mapbox API key to display the map. You can get one by signing up at <a href="https://mapbox.com" target="_blank" rel="noreferrer" className="text-primary underline">mapbox.com</a>.
+            </p>
+            <form onSubmit={handleApiKeySubmit}>
+              <input
+                type="text"
+                value={apiKeyInput}
+                onChange={(e) => setApiKeyInput(e.target.value)}
+                placeholder="Enter your Mapbox API key"
+                className="w-full px-3 py-2 border border-input rounded-md mb-3"
+              />
+              <button 
+                type="submit"
+                className="bg-primary text-primary-foreground px-4 py-2 rounded-md w-full"
+              >
+                Save and Load Map
+              </button>
+            </form>
           </div>
-        )}
-      </div>
-    </>
+        </div>
+      )}
+    </div>
   );
 };
 

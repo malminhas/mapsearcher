@@ -1,100 +1,48 @@
 import React from 'react';
-import { SearchType } from '@/types';
-import { Search, MapPin, Building, Landmark } from 'lucide-react';
+import { Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { SearchType } from '@/types';
 
 interface SearchInputProps {
   type: SearchType;
   value: string;
   onChange: (value: string) => void;
-  onSearch: (type: SearchType, value: string) => void;
-  onFocus: (type: SearchType) => void;
-  onBlur: () => void;
-  activeInput: SearchType | null;
-  loading: boolean;
+  onSearch: () => void;
+  loading?: boolean;
+  label?: string;
 }
 
-const SearchInput: React.FC<SearchInputProps> = ({
-  type,
-  value,
-  onChange,
-  onSearch,
-  onFocus,
-  onBlur,
-  activeInput,
-  loading
-}) => {
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      onSearch(type, value);
-    }
-  };
-
-  // Determine the icon based on the search type
-  const getIcon = () => {
-    switch (type) {
-      case 'postcode':
-        return <MapPin size={18} />;
-      case 'town':
-        return <Building size={18} />;
-      case 'county':
-        return <Landmark size={18} />;
-    }
-  };
-
-  // Format the label based on the search type
-  const getLabel = () => {
-    return type.charAt(0).toUpperCase() + type.slice(1);
-  };
-
+const SearchInput = ({ type, value, onChange, onSearch, loading = false, label = 'Location' }: SearchInputProps) => {
   return (
-    <div 
-      className={cn(
-        "relative transition-all duration-300 rounded-lg", 
-        activeInput === type ? "ring-2 ring-primary/30 shadow-sm" : ""
-      )}
-    >
-      <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-        {getIcon()}
-      </div>
-      <input
-        type="search"
-        id={type}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        onKeyDown={handleKeyDown}
-        onFocus={() => onFocus(type)}
-        onBlur={onBlur}
-        placeholder={`Enter ${type}`}
-        className={cn(
-          "w-full px-10 py-3 rounded-lg border bg-background transition-all",
-          "focus:ring-0 focus:outline-none",
-          "placeholder:text-muted-foreground/70",
-          activeInput === type ? "border-primary/30" : "border-input hover:border-input/80"
-        )}
-        disabled={loading}
-      />
-      <button
-        type="button"
-        onClick={() => onSearch(type, value)}
-        disabled={loading || !value.trim()}
-        className={cn(
-          "absolute right-3 top-1/2 -translate-y-1/2",
-          "text-muted-foreground hover:text-foreground transition-colors",
-          "disabled:opacity-50 disabled:cursor-not-allowed"
-        )}
-      >
-        <Search size={18} />
-      </button>
-      <label 
-        htmlFor={type} 
-        className={cn(
-          "absolute -top-2 left-2 px-1 text-xs font-medium bg-card",
-          activeInput === type ? "text-primary" : "text-muted-foreground"
-        )}
-      >
-        {getLabel()}
+    <div className="relative">
+      <label className="block text-sm font-medium text-gray-700 mb-1">
+        {label}
       </label>
+      <div className="relative flex items-center">
+        <input
+          type="text"
+          className={cn(
+            "block w-full rounded-lg border border-gray-300 bg-white py-2 pl-3 pr-10",
+            "focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500",
+            "placeholder:text-gray-400"
+          )}
+          placeholder="Enter location..."
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              onSearch();
+            }
+          }}
+        />
+        <button
+          onClick={onSearch}
+          className="absolute inset-y-0 right-0 flex items-center pr-3"
+          disabled={loading}
+        >
+          <Search className="h-5 w-5 text-gray-400" />
+        </button>
+      </div>
     </div>
   );
 };
