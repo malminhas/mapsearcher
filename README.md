@@ -1,8 +1,8 @@
-# Location Database Browser
+# Mapsearcher
 
 A modern web application for exploring UK postcodes, districts and towns with spatial search capabilities.
-Built with Cursor and Lovable. 
-
+Built with Cursor and Lovable.  Uses React, TypeScript, shadcn/ui, Mapbox GL JS and Tailwind CSS at the frontend. 
+FastAPI and SQLite with Spatialite extension at the backend.
 
 ## Features
 
