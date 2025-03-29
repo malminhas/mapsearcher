@@ -1,6 +1,8 @@
 # Location Database Browser
 
 A modern web application for exploring UK postcodes, districts and towns with spatial search capabilities.
+Built with Cursor and Lovable. 
+
 
 ## Features
 
@@ -100,15 +102,35 @@ All search endpoints support the following query parameters:
 
 ### Backend Setup
 
-1. Create the database:
+1. Install system dependencies:
+
+**macOS**:
 ```bash
-cd backend
-python csv_to_sqlite.py -c locations.csv
+# Install SpatiaLite and its dependencies
+$ brew update
+$ brew install spatialite-tools
 ```
 
-2. Start the backend:
+2. Create a Python virtual environment and install dependencies:
 ```bash
-python location_api.py
+# Create and activate virtual environment
+$ python -m venv venv
+$ source venv/bin/activate
+
+# Install Python dependencies
+$ cd backend
+$ pip install -r requirements.txt
+$ pip install pandas matplotlib seaborn python-multipart docopt
+```
+
+3. Create the database:
+```bash
+$ python csv_to_sqlite.py -c locations.csv
+```
+
+4. Start the backend:
+```bash
+$ python -m uvicorn location_api:app --reload
 ```
 
 The API documentation will be available at:
@@ -119,7 +141,7 @@ The API documentation will be available at:
 
 1. Install dependencies:
 ```bash
-npm install
+$ npm install
 ```
 
 2. Create a `.env` file with your Mapbox token:
@@ -129,7 +151,7 @@ VITE_MAPBOX_TOKEN=your_mapbox_token_here
 
 3. Start the development server:
 ```bash
-npm run dev
+$ npm run dev
 ```
 
 ## Docker Deployment
@@ -137,9 +159,9 @@ npm run dev
 The project includes Docker and Terraform configurations for containerized deployment:
 
 ```bash
-cd terraform
-terraform init
-terraform apply
+$ cd terraform
+$ terraform init
+$ terraform apply
 ```
 
 This will:
