@@ -27,6 +27,20 @@ const Map: React.FC<MapProps> = ({ locations, selectedLocation, hoveredLocation,
   const [apiKey, setApiKey] = useState(mapboxgl.accessToken);
   const [showModal, setShowModal] = useState(!mapboxgl.accessToken || mapboxgl.accessToken === 'REPLACE_WITH_YOUR_MAPBOX_TOKEN');
 
+  // Add validation helper function at the top of the file after the interfaces
+  const isValidCoordinate = (lat: number, lon: number): boolean => {
+    return (
+      typeof lat === 'number' && 
+      typeof lon === 'number' && 
+      !isNaN(lat) && 
+      !isNaN(lon) && 
+      lat >= -90 && 
+      lat <= 90 && 
+      lon >= -180 && 
+      lon <= 180
+    );
+  };
+
   // Initialize map
   useEffect(() => {
     if (!mapContainer.current || !apiKey) return;
@@ -115,6 +129,15 @@ const Map: React.FC<MapProps> = ({ locations, selectedLocation, hoveredLocation,
     const bounds = new mapboxgl.LngLatBounds();
     
     locations.forEach(location => {
+      // Validate coordinates before using them
+      if (!isValidCoordinate(location.latitude, location.longitude)) {
+        console.warn(`Invalid coordinates for location: ${location.postcode}`, {
+          latitude: location.latitude,
+          longitude: location.longitude
+        });
+        return; // Skip this location
+      }
+
       // Check if location is within the geofence
       const isWithin = location.within_geofence === true;
       const isSelected = selectedLocation?.postcode === location.postcode;
@@ -187,7 +210,7 @@ const Map: React.FC<MapProps> = ({ locations, selectedLocation, hoveredLocation,
     });
     
     // Only fit bounds if we have multiple locations and no selected location
-    if (locations.length > 1 && !selectedLocation) {
+    if (markersRef.current.length > 1 && !selectedLocation) {
       map.current.fitBounds(bounds, {
         padding: { top: 50, bottom: 50, left: 50, right: 50 },
         maxZoom: 15,

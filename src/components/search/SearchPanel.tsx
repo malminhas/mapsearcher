@@ -34,17 +34,31 @@ const SearchPanel: React.FC<SearchPanelProps> = ({ onSearch, loading = false, on
       return 'postcode';
     }
     
-    // If it's a known county name (common UK counties)
+    // Common UK counties - move Greater London and London to towns
     const commonCounties = [
       'BERKSHIRE', 'BUCKINGHAMSHIRE', 'DERBYSHIRE', 'DEVON', 'DORSET',
       'ESSEX', 'GLOUCESTERSHIRE', 'HAMPSHIRE', 'KENT', 'LANCASHIRE',
       'LEICESTERSHIRE', 'LINCOLNSHIRE', 'NORFOLK', 'NORTHAMPTONSHIRE',
       'NOTTINGHAMSHIRE', 'OXFORDSHIRE', 'SOMERSET', 'SUFFOLK', 'SURREY',
       'SUSSEX', 'WARWICKSHIRE', 'WILTSHIRE', 'WORCESTERSHIRE', 'YORKSHIRE',
-      'LONDON', 'GREATER LONDON', 'WEST MIDLANDS', 'GREATER MANCHESTER',
-      'MERSEYSIDE', 'SOUTH YORKSHIRE', 'WEST YORKSHIRE', 'TYNE AND WEAR'
+      'WEST MIDLANDS', 'GREATER MANCHESTER', 'MERSEYSIDE', 'SOUTH YORKSHIRE',
+      'WEST YORKSHIRE', 'TYNE AND WEAR'
     ];
     
+    // Common major cities/towns that might be confused as counties
+    const majorTowns = [
+      'LONDON', 'GREATER LONDON', 'MANCHESTER', 'BIRMINGHAM', 'LEEDS',
+      'LIVERPOOL', 'NEWCASTLE', 'SHEFFIELD', 'BRISTOL', 'NOTTINGHAM',
+      'LEICESTER', 'COVENTRY', 'BRADFORD', 'CARDIFF', 'BELFAST', 'EDINBURGH',
+      'GLASGOW', 'ABERDEEN', 'DUNDEE'
+    ];
+
+    // Check major towns first
+    if (majorTowns.includes(cleanValue)) {
+      return 'town';
+    }
+    
+    // Then check counties
     if (commonCounties.includes(cleanValue)) {
       return 'county';
     }

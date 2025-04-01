@@ -127,7 +127,7 @@ $ pip install -r requirements.txt
 $ pip install pandas matplotlib seaborn python-multipart docopt
 ```
 
-3. Create the database:
+3. Create the database in /backend/data:
 ```bash
 $ python csv_to_sqlite.py -c locations.csv
 ```
